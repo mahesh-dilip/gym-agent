@@ -11,6 +11,7 @@ import {
   isYesterday,
   startOfWeek,
   isSameWeek,
+  set,
 } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 import type {
@@ -82,13 +83,13 @@ function formatDuration(session: WorkoutSession): number | null {
 
 function formatDateLabel(dateStr: string): string {
   const date = parseISO(dateStr);
-  if (isToday(date)) return "Today";
-  if (isYesterday(date)) return "Yesterday";
-  return format(date, "EEEE");
+  if (isToday(date)) return "TODAY";
+  if (isYesterday(date)) return "YESTERDAY";
+  return format(date, "EEEE").toUpperCase();
 }
 
 function formatDateSub(dateStr: string): string {
-  return format(parseISO(dateStr), "MMM d");
+  return format(parseISO(dateStr), "MMM d").toUpperCase();
 }
 
 function groupByWeek(sessions: WorkoutSession[]): { label: string; sessions: WorkoutSession[] }[] {
@@ -100,10 +101,11 @@ function groupByWeek(sessions: WorkoutSession[]): { label: string; sessions: Wor
     const weekStart = startOfWeek(date, { weekStartsOn: 1 });
     let label: string;
     if (isSameWeek(date, now, { weekStartsOn: 1 })) {
-      label = "This Week";
+      label = "THIS WEEK";
     } else {
       label = format(weekStart, "MMM d") + " – " + format(new Date(weekStart.getTime() + 6 * 86400000), "MMM d");
     }
+    label = label.toUpperCase();
     if (!weeks.has(label)) weeks.set(label, []);
     weeks.get(label)!.push(s);
   }
@@ -156,17 +158,16 @@ function WeekDots({ sessions }: { sessions: WorkoutSession[] }) {
         const isFuture = date > now;
         return (
           <div key={i} className="flex flex-col items-center gap-1">
-            <span className="text-[10px] font-medium text-text-tertiary">
+            <span className="text-[9px] font-mono text-text-tertiary">
               {day}
             </span>
             <div
-              className={`h-2 w-2 rounded-full transition-colors ${
-                isActive
-                  ? "bg-primary"
+              className={`h-1.5 w-1.5 transition-colors ${isActive
+                  ? "bg-primary shadow-[0_0_5px_var(--color-primary)]"
                   : isFuture
                     ? "bg-border-subtle"
-                    : "bg-surface-elevated"
-              }`}
+                    : "bg-surface-elevated border border-border-subtle"
+                }`}
             />
           </div>
         );
@@ -200,289 +201,155 @@ function SessionCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="group relative w-full overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface p-4 text-left transition-all active:scale-[0.98]"
+        className="tech-card group relative w-full overflow-hidden p-0 text-left transition-all active:scale-[0.99] hover:border-text-tertiary/50"
       >
         {/* Top row: date + status */}
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[15px] font-semibold tracking-tight text-text-primary">
-                {formatDateLabel(session.date)}
-              </span>
-              <span className="text-xs text-text-tertiary">
-                {formatDateSub(session.date)}
-              </span>
+        <div className="flex items-stretch">
+          {/* Status Stripe */}
+          <div className={`w-1 ${isComplete ? "bg-primary" : "bg-warning"}`} />
+
+          <div className="flex-1 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold tracking-tight text-text-primary">
+                  {formatDateLabel(session.date)}
+                </span>
+                <span className="text-[10px] bg-surface-elevated px-1.5 py-0.5 rounded border border-border-subtle font-mono text-text-secondary">
+                  {formatDateSub(session.date)}
+                </span>
+              </div>
+              {muscleGroups.length > 0 && (
+                <div className="flex max-w-[120px] overflow-hidden justify-end gap-1 flex-wrap">
+                  {muscleGroups.slice(0, 3).map((group) => (
+                    <span
+                      key={group}
+                      className="text-[9px] font-mono text-text-tertiary uppercase"
+                    >
+                      {group}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* Muscle group pills */}
-            {muscleGroups.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {muscleGroups.map((group) => (
-                  <span
-                    key={group}
-                    className="rounded-[var(--radius-pill)] bg-primary-muted px-2 py-0.5 text-[11px] font-medium text-primary-hover"
-                  >
-                    {group}
+
+            {/* Stats row */}
+            <div className="flex items-center gap-6">
+              {exercises.length > 0 && (
+                <div className="flex flex-col">
+                  <span className="stat-value text-lg font-mono leading-none text-text-secondary">
+                    {exercises.length}
                   </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            {isComplete ? (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-success-muted">
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-success"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-            ) : (
-              <div className="h-2 w-2 animate-pulse rounded-full bg-warning" />
-            )}
+                  <span className="text-[9px] uppercase tracking-wider text-text-tertiary">EXERCISES</span>
+                </div>
+              )}
+              {duration && (
+                <div className="flex flex-col">
+                  <span className="stat-value text-lg font-mono leading-none text-text-secondary">
+                    {duration}<span className="text-xs">m</span>
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-text-tertiary">DURATION</span>
+                </div>
+              )}
+              {volume > 0 && (
+                <div className="flex flex-col">
+                  <span className="stat-value text-lg font-mono leading-none text-text-secondary">
+                    {volume >= 1000 ? (volume / 1000).toFixed(1) : volume}<span className="text-xs">{volume >= 1000 ? 'k' : ''}</span>
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-text-tertiary">VOL (KG)</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="mt-3 flex items-center gap-4">
-          {exercises.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-text-tertiary">
-                <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M4.5 6.5v11M19.5 6.5v11" />
-              </svg>
-              <span className="stat-value text-xs font-medium text-text-secondary">
-                {exercises.length}
-              </span>
-            </div>
-          )}
-          {duration && (
-            <div className="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-text-tertiary">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span className="stat-value text-xs font-medium text-text-secondary">
-                {duration}m
-              </span>
-            </div>
-          )}
-          {volume > 0 && (
-            <div className="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-text-tertiary">
-                <path d="M2 20h20M5 20V10M9 20V4M13 20V14M17 20V8M21 20V2" />
-              </svg>
-              <span className="stat-value text-xs font-medium text-text-secondary">
-                {volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume} kg
-              </span>
-            </div>
-          )}
-          {recovery.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-text-tertiary">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              <span className="stat-value text-xs font-medium text-text-secondary">
-                {recovery.length}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Exercise summary line */}
-        {exercises.length > 0 && !expanded && (
-          <p className="mt-2 truncate text-[13px] text-text-tertiary">
-            {exercises.map((e) => e.exercise_name).join(" · ")}
-          </p>
-        )}
-
-        {/* Expand chevron */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-          <motion.svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-text-tertiary"
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </motion.svg>
-        </div>
-      </button>
-
-      {/* Expanded content */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="overflow-hidden"
-          >
-            <div className="mx-px rounded-b-[var(--radius-card)] border border-t-0 border-border bg-surface px-4 pb-4 pt-1">
-              {/* Plan progress */}
-              {planned.length > 0 && (
-                <div className="mb-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
-                      Plan
-                    </span>
-                    <span className="text-[11px] font-medium text-text-tertiary">
-                      {exercises.filter((e) =>
-                        planned.some((p) => p.name.toLowerCase() === e.exercise_name.toLowerCase())
-                      ).length}
-                      /{planned.length}
-                    </span>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mb-3 h-1 overflow-hidden rounded-full bg-surface-elevated">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${
-                          (exercises.filter((e) =>
+        {/* Expanded content */}
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden bg-surface-elevated/20 border-t border-border"
+            >
+              <div className="p-4 space-y-4">
+                {/* Plan progress */}
+                {planned.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-text-tertiary">
+                        Plan Completion
+                      </span>
+                      <span className="text-[10px] font-mono text-text-tertiary">
+                        {exercises.filter((e) =>
+                          planned.some((p) => p.name.toLowerCase() === e.exercise_name.toLowerCase())
+                        ).length}
+                        /{planned.length}
+                      </span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-0.5 overflow-hidden w-full bg-surface-elevated">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${(exercises.filter((e) =>
                             planned.some(
                               (p) => p.name.toLowerCase() === e.exercise_name.toLowerCase()
                             )
                           ).length /
-                            planned.length) *
-                          100
-                        }%`,
-                      }}
-                      transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-                      className="h-full rounded-full bg-primary"
-                    />
+                              planned.length) *
+                            100
+                            }%`,
+                        }}
+                        className="h-full bg-primary"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {planned.map((p, i) => {
-                      const done = exercises.some(
-                        (e) => e.exercise_name.toLowerCase() === p.name.toLowerCase()
-                      );
-                      return (
+                )}
+
+                {/* Logged exercises */}
+                {exercises.length > 0 && (
+                  <div>
+                    <span className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-text-tertiary">
+                      Log
+                    </span>
+                    <div className="space-y-1">
+                      {exercises.map((e, i) => (
                         <div
-                          key={i}
-                          className="flex items-center gap-2.5 py-0.5"
+                          key={e.id}
+                          className="flex items-center justify-between py-1 border-b border-border/50 last:border-0"
                         >
-                          <div
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] ${
-                              done
-                                ? "bg-success"
-                                : "border border-border"
-                            }`}
-                          >
-                            {done && (
-                              <svg
-                                width="9"
-                                height="9"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="3.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="text-background"
-                              >
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </div>
-                          <span
-                            className={`text-[13px] ${
-                              done ? "text-text-tertiary line-through" : "text-text-primary"
-                            }`}
-                          >
-                            {p.name}
+                          <span className="text-xs font-medium text-text-primary">
+                            {e.exercise_name}
                           </span>
-                          <span className="ml-auto text-[11px] text-text-tertiary">
-                            {p.target_sets}s
+                          <span className="text-[10px] font-mono text-text-tertiary">
+                            {[
+                              e.sets && `${e.sets}S`,
+                              e.reps && `${e.reps}R`,
+                              e.weight && `${e.weight}KG`,
+                              e.duration_minutes && `${e.duration_minutes}M`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Logged exercises */}
-              {exercises.length > 0 && (
-                <div className="mb-3">
-                  <span className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
-                    Exercises
-                  </span>
-                  <div className="space-y-1.5">
-                    {exercises.map((e, i) => (
-                      <motion.div
-                        key={e.id}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.03 }}
-                        className="flex items-center justify-between rounded-[var(--radius-button)] bg-surface-glass px-3 py-2"
-                      >
-                        <span className="text-[13px] font-medium text-text-primary">
-                          {e.exercise_name}
-                        </span>
-                        <span className="stat-value text-[12px] text-text-secondary">
-                          {[
-                            e.sets && `${e.sets}s`,
-                            e.reps && `${e.reps}r`,
-                            e.weight && `${e.weight}${e.weight_unit}`,
-                            e.duration_minutes && `${e.duration_minutes}m`,
-                            e.distance_km && `${e.distance_km}km`,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      </motion.div>
-                    ))}
+                {session.notes && (
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-[10px] font-mono text-text-tertiary uppercase mb-1">NOTES</p>
+                    <p className="text-xs italic text-text-secondary">
+                      "{session.notes}"
+                    </p>
                   </div>
-                </div>
-              )}
-
-              {/* Recovery */}
-              {recovery.length > 0 && (
-                <div>
-                  <span className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
-                    Recovery
-                  </span>
-                  <div className="space-y-1.5">
-                    {recovery.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between rounded-[var(--radius-button)] bg-success-muted px-3 py-2"
-                      >
-                        <span className="text-[13px] font-medium text-success">
-                          {ACTIVITY_LABELS[r.activity] || r.activity}
-                        </span>
-                        <span className="text-[12px] text-text-secondary">
-                          {r.body_area}
-                          {r.duration_minutes ? ` · ${r.duration_minutes}m` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {session.notes && (
-                <p className="mt-3 text-[12px] italic text-text-tertiary">
-                  {session.notes}
-                </p>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </button>
     </motion.div>
   );
 }
@@ -519,28 +386,17 @@ export default function HistoryPage() {
   return (
     <div className="flex h-dvh flex-col bg-background">
       {/* Header */}
-      <div className="relative border-b border-border bg-surface">
-        <div className="flex items-center justify-between px-4 pb-3 pt-3">
+      <div className="relative border-b border-border bg-surface/80 backdrop-blur-md z-10">
+        <div className="flex items-center justify-between px-4 pb-3 pt-safe-top mt-3">
           <button
-            onClick={() => router.push("/")}
-            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-text-secondary transition-colors active:bg-surface-elevated"
+            onClick={() => router.back()}
+            className="flex h-8 w-8 items-center justify-center rounded transition-colors text-text-secondary hover:bg-surface-elevated"
             aria-label="Back"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
           </button>
-          <h1 className="text-[15px] font-semibold tracking-tight text-text-primary">
-            History
+          <h1 className="text-xs font-bold tracking-[0.2em] font-mono text-text-primary uppercase">
+            SESSION_HISTORY
           </h1>
           <div className="w-8" />
         </div>
@@ -551,33 +407,24 @@ export default function HistoryPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="flex items-center justify-between border-t border-border px-4 py-3"
+            className="flex items-center justify-between border-t border-border px-4 py-4"
           >
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-8">
               <div>
-                <p className="stat-value text-xl font-bold tracking-tight text-text-primary">
+                <p className="stat-value text-2xl font-bold tracking-tighter text-text-primary leading-none">
                   {streak}
                 </p>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-                  Streak
+                <p className="text-[9px] font-mono uppercase tracking-widest text-text-tertiary mt-1">
+                  STREAK
                 </p>
               </div>
-              <div className="h-6 w-px bg-border" />
+              <div className="h-8 w-px bg-border-subtle" />
               <div>
-                <p className="stat-value text-xl font-bold tracking-tight text-text-primary">
+                <p className="stat-value text-2xl font-bold tracking-tighter text-text-primary leading-none">
                   {totalSessions}
                 </p>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-                  Sessions
-                </p>
-              </div>
-              <div className="h-6 w-px bg-border" />
-              <div>
-                <p className="stat-value text-xl font-bold tracking-tight text-text-primary">
-                  {totalExercises}
-                </p>
-                <p className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-                  Exercises
+                <p className="text-[9px] font-mono uppercase tracking-widest text-text-tertiary mt-1">
+                  TOTAL
                 </p>
               </div>
             </div>
@@ -587,28 +434,16 @@ export default function HistoryPage() {
       </div>
 
       {/* Session list */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
+      <div className="flex-1 overflow-y-auto hide-scrollbar bg-background">
         {loading && (
           <div className="space-y-3 p-4">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="animate-pulse rounded-[var(--radius-card)] border border-border bg-surface p-4"
+                className="animate-pulse rounded border border-border bg-surface p-4"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="h-4 w-24 rounded bg-surface-elevated" />
-                    <div className="mt-2 flex gap-2">
-                      <div className="h-4 w-14 rounded-full bg-surface-elevated" />
-                      <div className="h-4 w-14 rounded-full bg-surface-elevated" />
-                    </div>
-                  </div>
-                  <div className="h-5 w-5 rounded-full bg-surface-elevated" />
-                </div>
-                <div className="mt-3 flex gap-4">
-                  <div className="h-3 w-8 rounded bg-surface-elevated" />
-                  <div className="h-3 w-12 rounded bg-surface-elevated" />
-                </div>
+                <div className="h-4 w-24 rounded bg-surface-elevated mb-2" />
+                <div className="h-8 w-full rounded bg-surface-elevated" />
               </div>
             ))}
           </div>
@@ -617,45 +452,30 @@ export default function HistoryPage() {
         {!loading && sessions.length === 0 && (
           <div className="flex h-full items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="text-center"
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-elevated">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  className="text-text-tertiary"
-                >
-                  <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M4.5 6.5v11M19.5 6.5v11" />
-                </svg>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-text-tertiary">
+                <div className="h-1 w-1 bg-text-tertiary rounded-full" />
               </div>
-              <p className="text-[15px] font-medium text-text-primary">
-                No workouts yet
-              </p>
-              <p className="mt-1 text-[13px] text-text-tertiary">
-                Start a session to begin tracking
+              <p className="text-xs font-mono uppercase tracking-widest text-text-tertiary">
+                NO_DATA_FOUND
               </p>
             </motion.div>
           </div>
         )}
 
         {!loading && sessions.length > 0 && (
-          <div className="pb-8">
+          <div className="pb-8 pt-2">
             {weeks.map((week) => (
-              <div key={week.label}>
-                <div className="sticky top-0 z-10 bg-background/80 px-4 py-2 backdrop-blur-sm">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
+              <div key={week.label} className="mb-6">
+                <div className="sticky top-0 z-0 px-4 py-2">
+                  <span className="text-[10px] font-bold font-mono uppercase tracking-widest text-text-tertiary/50">
                     {week.label}
                   </span>
                 </div>
-                <div className="space-y-2 px-4 pb-2">
+                <div className="space-y-3 px-4">
                   {week.sessions.map((session, i) => (
                     <SessionCard key={session.id} session={session} index={i} />
                   ))}

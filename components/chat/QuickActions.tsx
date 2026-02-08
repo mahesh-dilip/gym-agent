@@ -3,7 +3,7 @@
 import type { SessionStatus } from "@/lib/state/types";
 import type { PlannedExercise, ExerciseLog } from "@/lib/supabase/types";
 
-type QuickAction = { label: string; text: string };
+type QuickAction = { label: string; text: string; primary?: boolean };
 
 type QuickActionsProps = {
   onAction: (text: string) => void;
@@ -31,20 +31,21 @@ function getActions(
     const next = getNextExercise(planned, completed);
     if (next) {
       actions.push({
-        label: `Log ${next.name}`,
+        label: `LOG: ${next.name.toUpperCase()}`,
         text: `I did ${next.name}`,
+        primary: true,
       });
     }
     actions.push(
-      { label: "What next?", text: "What should I do next?" },
-      { label: "Log Recovery", text: "I want to log a recovery activity" },
-      { label: "End Session", text: "I'm done for today" }
+      { label: "WHAT NEXT?", text: "What should I do next?" },
+      { label: "LOG RECOVERY", text: "I want to log a recovery activity" },
+      { label: "END SESSION", text: "I'm done for today" }
     );
     return actions;
   }
   return [
-    { label: "What should I do?", text: "What should I do today?" },
-    { label: "Set a Goal", text: "I want to set a fitness goal" },
+    { label: "SUGGEST WORKOUT", text: "What should I do today?" },
+    { label: "SET GOAL", text: "I want to set a fitness goal" },
   ];
 }
 
@@ -58,17 +59,16 @@ export function QuickActions({
   const actions = getActions(sessionStatus, plannedExercises, completedExercises);
 
   return (
-    <div className="flex gap-1.5 overflow-x-auto px-4 py-2 hide-scrollbar">
+    <div className="flex gap-2 overflow-x-auto px-4 py-3 hide-scrollbar mask-linear-fade">
       {actions.map((action, i) => (
         <button
           key={action.label}
           onClick={() => onAction(action.text)}
           disabled={disabled}
-          className={`shrink-0 rounded-[var(--radius-pill)] px-3.5 py-1.5 text-[13px] font-medium transition-all active:scale-95 disabled:opacity-30 ${
-            i === 0 && sessionStatus === "in_progress"
-              ? "bg-primary-muted text-primary-hover border border-primary/20"
-              : "border border-border bg-surface text-text-secondary hover:text-text-primary"
-          }`}
+          className={`shrink-0 rounded-[4px] px-3 py-1.5 text-[10px] font-mono tracking-widest uppercase transition-all active:scale-95 disabled:opacity-30 border ${action.primary
+              ? "bg-primary text-white border-primary shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+              : "border-border bg-surface text-text-secondary hover:text-text-primary hover:border-text-secondary"
+            }`}
         >
           {action.label}
         </button>

@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import type { UIMessage } from "ai";
+import { ReactNode } from "react";
+import { UIMessage } from "ai";
 import { ExerciseLogCard } from "@/components/generative-ui/ExerciseLogCard";
 import { RecoveryLogCard } from "@/components/generative-ui/RecoveryLogCard";
 import { WorkoutPlanCard } from "@/components/generative-ui/WorkoutPlanCard";
@@ -41,7 +41,6 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
   }
 }
 
-/** Lightweight inline markdown: **bold**, *italic*, `code` */
 function renderInlineMarkdown(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
   return parts.map((segment, i) => {
@@ -53,13 +52,13 @@ function renderInlineMarkdown(text: string): ReactNode[] {
       );
     }
     if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
-      return <em key={i}>{segment.slice(1, -1)}</em>;
+      return <em key={i} className="text-text-secondary not-italic">{segment.slice(1, -1)}</em>;
     }
     if (segment.startsWith("`") && segment.endsWith("`")) {
       return (
         <code
           key={i}
-          className="rounded-md bg-surface-elevated px-1.5 py-0.5 font-mono text-[13px] text-primary-hover"
+          className="rounded-sm bg-surface-elevated px-1.5 py-0.5 font-mono text-[12px] text-primary-hover border border-border-subtle"
         >
           {segment.slice(1, -1)}
         </code>
@@ -71,50 +70,35 @@ function renderInlineMarkdown(text: string): ReactNode[] {
 
 export function ChatMessage({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
-  const hasToolParts = message.parts.some(
-    (p) => p.type === "dynamic-tool" || p.type.startsWith("tool-")
-  );
 
   return (
-    <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`${
-          isUser
-            ? "max-w-[85%]"
-            : hasToolParts
-              ? "w-full max-w-full"
-              : "max-w-[85%]"
-        }`}
-      >
+    <div className={`mb-6 flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
+      <div className={`flex flex-col gap-1.5 ${isUser ? "items-end max-w-[85%]" : "items-start w-full"}`}>
+        {/* Label */}
+        <span className="text-[10px] uppercase tracking-widest text-text-tertiary font-mono">
+          {isUser ? "You" : "Coach"}
+        </span>
+
         {message.parts.map((part, i) => {
           if (part.type === "text" && part.text.trim()) {
             return (
               <div
                 key={i}
-                className={`rounded-[var(--radius-card)] px-4 py-3 ${
-                  isUser
-                    ? "bg-primary text-white"
-                    : "border border-border bg-surface text-text-primary"
-                } ${i > 0 ? "mt-2" : ""}`}
+                className={`py-1 ${isUser
+                    ? "text-right text-[15px] text-text-primary"
+                    : "text-left text-[15px] text-text-secondary leading-relaxed max-w-prose"
+                  }`}
               >
-                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                  {isUser ? part.text : renderInlineMarkdown(part.text)}
-                </p>
+                {isUser ? part.text : renderInlineMarkdown(part.text)}
               </div>
             );
           }
 
           if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
-            const toolName =
-              part.type === "dynamic-tool"
-                ? (part as { toolName: string }).toolName
-                : part.type.replace("tool-", "");
-
-            const isToolLoading =
-              "state" in part && part.state === "input-streaming";
-
-            const output =
-              "output" in part ? part.output : undefined;
+            const dynamicPart = part as any;
+            const toolName = dynamicPart.toolName || part.type.replace("tool-", "");
+            const isToolLoading = "state" in part && part.state === "input-streaming";
+            const output = "output" in part ? part.output : undefined;
             const input = "input" in part ? part.input : undefined;
 
             const component = getToolComponent(
@@ -122,15 +106,15 @@ export function ChatMessage({ message }: { message: UIMessage }) {
               output ?? input,
               isToolLoading
             );
+
             if (component) {
               return (
-                <div key={i} className={i > 0 ? "mt-2" : ""}>
+                <div key={i} className="w-full mt-2">
                   {component}
                 </div>
               );
             }
           }
-
           return null;
         })}
       </div>

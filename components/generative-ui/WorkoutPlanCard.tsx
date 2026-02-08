@@ -24,7 +24,6 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
   const { state, persistPlan } = useSharedState();
   const [started, setStarted] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [completed, setCompleted] = useState<Set<number>>(new Set());
 
   // Hydrate: if planned exercises already exist in the session, mark as started
   useEffect(() => {
@@ -49,22 +48,13 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
     }
   }
 
-  function toggleExercise(index: number) {
-    setCompleted((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
-
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-[var(--radius-card)] bg-surface p-4">
-        <div className="h-4 w-40 rounded bg-surface-elevated" />
-        <div className="mt-3 space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-3 w-full rounded bg-surface-elevated" />
+      <div className="tech-card p-4 animate-pulse">
+        <div className="h-4 w-32 bg-surface-elevated rounded mb-4" />
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-8 w-full bg-surface-elevated rounded" />
           ))}
         </div>
       </div>
@@ -72,66 +62,67 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
   }
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-border bg-surface p-4">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-primary">
-          workout plan
-        </span>
-        {started && (
-          <span className="text-xs font-medium text-success">Active</span>
-        )}
+    <div className="tech-card overflow-hidden">
+      {/* Header */}
+      <div className="border-b border-border bg-surface-elevated/50 px-4 py-3 pb-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-primary">
+            WORKOUT_PLAN
+          </span>
+          {started && (
+            <span className="flex h-2 w-2 rounded-full bg-success shadow-[0_0_8px_var(--color-success)]" />
+          )}
+        </div>
+        <h3 className="text-sm font-bold text-text-primary tracking-tight">{data.focus.toUpperCase()}</h3>
+        <p className="mt-1 text-xs text-text-tertiary leading-relaxed line-clamp-2">
+           // {data.rationale}
+        </p>
       </div>
 
-      <h3 className="text-base font-semibold text-text-primary">{data.focus}</h3>
-      <p className="mt-1 text-sm text-text-secondary">{data.rationale}</p>
-
-      <div className="mt-3 space-y-1">
+      {/* List */}
+      <div className="divide-y divide-border-subtle bg-surface">
         {data.exercises.map((exercise, i) => (
-          <button
-            key={i}
-            onClick={() => started && toggleExercise(i)}
-            disabled={!started}
-            className={`flex w-full items-center gap-3 rounded-[var(--radius-button)] px-3 py-3 text-left transition-colors ${
-              started ? "active:bg-surface-elevated" : ""
-            }`}
-          >
-            <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
-                completed.has(i)
-                  ? "border-success bg-success text-background"
-                  : "border-border"
-              }`}
-            >
-              {completed.has(i) && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </span>
-            <div className="flex-1">
-              <span
-                className={`text-sm font-medium ${
-                  completed.has(i) ? "text-text-secondary line-through" : "text-text-primary"
-                }`}
-              >
+          <div key={i} className="flex items-center justify-between px-4 py-3 group hover:bg-surface-elevated/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-text-tertiary w-4">
+                {(i + 1).toString().padStart(2, '0')}
+              </span>
+              <span className="text-sm font-medium text-text-primary group-hover:text-primary transition-colors">
                 {exercise.name}
               </span>
-              <span className="ml-2 text-xs text-text-secondary">
-                {exercise.target_sets} sets
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-text-secondary bg-surface-elevated px-1.5 py-0.5 rounded border border-border-subtle">
+                {exercise.target_sets} SETS
               </span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
 
+      {/* Footer / Action */}
       {!started && (
-        <button
-          onClick={handleStart}
-          disabled={starting}
-          className="mt-3 min-h-[44px] w-full rounded-[var(--radius-button)] bg-primary px-4 py-3 text-sm font-medium text-white active:bg-primary-hover disabled:opacity-50"
-        >
-          {starting ? "Starting..." : "Start Session"}
-        </button>
+        <div className="p-3 border-t border-border bg-surface-elevated/10">
+          <button
+            onClick={handleStart}
+            disabled={starting}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white text-xs font-bold uppercase tracking-widest rounded transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_var(--color-primary)]"
+          >
+            {starting ? (
+              <>INITIATING...</>
+            ) : (
+              <>START SESSION</>
+            )}
+          </button>
+        </div>
+      )}
+
+      {started && (
+        <div className="px-4 py-2 border-t border-border bg-success-muted/20">
+          <p className="text-[10px] font-mono text-success text-center tracking-widest uppercase">
+            PLAN ACTIVE - LOG AS YOU GO
+          </p>
+        </div>
       )}
     </div>
   );

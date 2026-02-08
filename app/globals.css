@@ -7,6 +7,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Geist";
   src: url("https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-500-normal.woff2") format("woff2");
@@ -14,6 +15,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Geist";
   src: url("https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff2") format("woff2");
@@ -21,13 +23,7 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: "Geist";
-  src: url("https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+
 @font-face {
   font-family: "Geist Mono";
   src: url("https://cdn.jsdelivr.net/fontsource/fonts/geist-mono@latest/latin-400-normal.woff2") format("woff2");
@@ -37,31 +33,45 @@
 }
 
 @theme inline {
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-surface: #131316;
-  --color-surface-elevated: #1c1c22;
-  --color-surface-glass: rgba(255, 255, 255, 0.04);
-  --color-primary: #6366f1;
-  --color-primary-hover: #818cf8;
-  --color-primary-muted: rgba(99, 102, 241, 0.12);
+  --color-background: #050505;
+  --color-foreground: #ededed;
+
+  --color-surface: #0a0a0a;
+  --color-surface-elevated: #121212;
+  --color-surface-hover: #181818;
+
+  /* Minimal Techcore Palette */
+  --color-primary: #3b82f6;
+  /* Electric Blue */
+  --color-primary-hover: #60a5fa;
+  --color-primary-muted: rgba(59, 130, 246, 0.1);
+
   --color-success: #10b981;
-  --color-success-muted: rgba(16, 185, 129, 0.12);
-  --color-danger: #f43f5e;
-  --color-danger-muted: rgba(244, 63, 94, 0.12);
+  --color-success-muted: rgba(16, 185, 129, 0.1);
+
+  --color-danger: #ef4444;
+  --color-danger-muted: rgba(239, 68, 68, 0.1);
+
   --color-warning: #f59e0b;
-  --color-warning-muted: rgba(245, 158, 11, 0.12);
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #71717a;
+  --color-warning-muted: rgba(245, 158, 11, 0.1);
+
+  --color-text-primary: #ededed;
+  --color-text-secondary: #a1a1aa;
   --color-text-tertiary: #52525b;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-subtle: rgba(255, 255, 255, 0.04);
-  --color-glow: rgba(99, 102, 241, 0.15);
+
+  --color-border: #27272a;
+  --color-border-subtle: #18181b;
+
+  --color-glow: rgba(59, 130, 246, 0.15);
+
   --font-sans: "Geist", system-ui, -apple-system, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
-  --radius-card: 16px;
-  --radius-button: 10px;
-  --radius-pill: 100px;
+
+  --radius-card: 12px;
+  --radius-button: 6px;
+  --radius-pill: 9999px;
+
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 html {
@@ -74,19 +84,33 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
+  /* Prevent rubber banding on full app apps */
 }
 
 /* Prevent iOS zoom on input focus */
-input, textarea, select {
+input,
+textarea,
+select {
   font-size: 16px !important;
 }
 
-/* Safe area insets for notch phones */
-.safe-top { padding-top: env(safe-area-inset-top); }
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-.safe-left { padding-left: env(safe-area-inset-left); }
-.safe-right { padding-right: env(safe-area-inset-right); }
+/* Safe area insets */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
 
 /* Smooth scrolling */
 .scroll-container {
@@ -94,52 +118,90 @@ input, textarea, select {
   scroll-behavior: smooth;
 }
 
-/* Hide scrollbar but keep functionality */
+/* Hide scrollbar */
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* Tap highlight removal for mobile */
+/* Tap highlight removal */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Premium surface effects */
-.glass-surface {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.01) 100%
-  );
+/* UI Utilities */
+.glass-panel {
+  background: rgba(5, 5, 5, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tech-border {
   border: 1px solid var(--color-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 }
 
-.surface-glow {
-  box-shadow:
-    0 0 0 1px var(--color-border),
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 0 40px -10px var(--color-glow);
+.tech-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
 }
 
-/* Stat number styling */
+/* Typography Utilities */
+.text-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
 .stat-value {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
 
-/* Subtle noise texture overlay */
-.noise-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.015;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  pointer-events: none;
-  border-radius: inherit;
+/* Animations */
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mask-linear-fade {
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.bg-surface-glass {
+  background: rgba(20, 20, 22, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }

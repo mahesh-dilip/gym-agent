@@ -60,166 +60,174 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
       setSaved(true);
       setEditing(false);
     } else {
-      setError("Failed to save. Tap Confirm to retry.");
+      setError("FAILED TO SAVE. RETRY?");
     }
   }
 
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-[var(--radius-card)] bg-surface p-4">
-        <div className="h-4 w-32 rounded bg-surface-elevated" />
-        <div className="mt-2 h-3 w-48 rounded bg-surface-elevated" />
+      <div className="tech-card p-4 animate-pulse">
+        <div className="h-4 w-20 bg-surface-elevated rounded mb-4" />
+        <div className="h-6 w-48 bg-surface-elevated rounded mb-4" />
+        <div className="flex gap-2">
+          <div className="h-8 flex-1 bg-surface-elevated rounded" />
+          <div className="h-8 flex-1 bg-surface-elevated rounded" />
+        </div>
       </div>
     );
   }
 
-  const categoryLabel =
-    form.category === "cardio"
-      ? "Cardio"
-      : form.category === "flexibility"
-        ? "Flexibility"
-        : "Strength";
-
+  const categoryLabel = form.category.toUpperCase();
   const showDuration = form.category === "cardio" || form.category === "flexibility";
   const showDistance = form.category === "cardio";
   const showStrength = form.category === "strength";
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-border bg-surface p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-          {categoryLabel}
+    <div className={`tech-card overflow-hidden transition-all ${saved ? "border-success/30 bg-success-muted/5" : ""}`}>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border bg-surface-elevated/30 flex items-center justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary">
+          {categoryLabel} LOG
         </span>
         {saved && (
-          <span className="text-xs font-medium text-success">Saved</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_5px_var(--color-success)]" />
+            <span className="text-[10px] font-mono text-success uppercase tracking-wider">SAVED</span>
+          </div>
         )}
       </div>
 
-      <h3 className="text-base font-semibold text-text-primary">
-        {form.exercise_name}
-      </h3>
+      <div className="p-4">
+        <h3 className="text-lg font-bold text-text-primary tracking-tight mb-4">
+          {form.exercise_name}
+        </h3>
 
-      {editing ? (
-        <div className="mt-3 space-y-3">
-          {showStrength && (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="mb-1 block text-xs text-text-secondary">Sets</label>
-                <input
-                  type="number"
-                  value={form.sets ?? ""}
-                  onChange={(e) => setForm({ ...form, sets: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs text-text-secondary">Reps</label>
-                <input
-                  type="number"
-                  value={form.reps ?? ""}
-                  onChange={(e) => setForm({ ...form, reps: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs text-text-secondary">Weight</label>
-                <input
-                  type="number"
-                  value={form.weight ?? ""}
-                  onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                  inputMode="decimal"
-                />
-              </div>
-            </div>
-          )}
-          {showDuration && (
-            <div className={`flex gap-3`}>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs text-text-secondary">Duration (min)</label>
-                <input
-                  type="number"
-                  value={form.duration_minutes ?? ""}
-                  onChange={(e) => setForm({ ...form, duration_minutes: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                  inputMode="decimal"
-                />
-              </div>
+        {/* Edit Form */}
+        {(editing || !saved) && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              {showStrength && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">SETS</label>
+                    <input
+                      type="number"
+                      value={form.sets ?? ""}
+                      onChange={(e) => setForm({ ...form, sets: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">REPS</label>
+                    <input
+                      type="number"
+                      value={form.reps ?? ""}
+                      onChange={(e) => setForm({ ...form, reps: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KG</label>
+                    <input
+                      type="number"
+                      value={form.weight ?? ""}
+                      onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                </>
+              )}
+
+              {showDuration && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">MINS</label>
+                  <input
+                    type="number"
+                    value={form.duration_minutes ?? ""}
+                    onChange={(e) => setForm({ ...form, duration_minutes: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+              )}
+
               {showDistance && (
-                <div className="flex-1">
-                  <label className="mb-1 block text-xs text-text-secondary">Distance (km)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KM</label>
                   <input
                     type="number"
                     value={form.distance_km ?? ""}
                     onChange={(e) => setForm({ ...form, distance_km: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                    inputMode="decimal"
+                    className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                    placeholder="0"
                   />
                 </div>
               )}
             </div>
-          )}
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => setEditing(false)}
-              className="min-h-[44px] flex-1 rounded-[var(--radius-button)] border border-border px-4 py-2 text-sm text-text-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={saving}
-              className="min-h-[44px] flex-1 rounded-[var(--radius-button)] bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mt-1 flex flex-wrap gap-2 text-sm text-text-secondary">
-            {form.sets && <span>{form.sets} sets</span>}
-            {form.sets && (form.reps || form.weight) && <span>·</span>}
-            {form.reps && <span>{form.reps} reps</span>}
-            {form.reps && form.weight && <span>·</span>}
-            {form.weight && (
-              <span>
-                {form.weight} {form.weight_unit || "kg"}
-              </span>
-            )}
-            {form.duration_minutes && <span>{form.duration_minutes} min</span>}
-            {form.duration_minutes && form.distance_km && <span>·</span>}
-            {form.distance_km && <span>{form.distance_km} km</span>}
-          </div>
-          {form.notes && (
-            <p className="mt-1 text-xs text-text-secondary">{form.notes}</p>
-          )}
 
-          {error && (
-            <p className="mt-2 text-xs text-danger">{error}</p>
-          )}
-
-          {!saved && (
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => setEditing(true)}
-                className="min-h-[44px] flex-1 rounded-[var(--radius-button)] border border-border px-4 py-2 text-sm text-text-secondary active:bg-surface-elevated"
-              >
-                Edit
-              </button>
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
+              {saved && (
+                <button
+                  onClick={() => setEditing(false)}
+                  className="flex-1 py-3 text-xs font-bold text-text-secondary border border-border rounded hover:bg-surface-elevated transition-colors uppercase tracking-widest"
+                >
+                  CANCEL
+                </button>
+              )}
               <button
                 onClick={handleConfirm}
                 disabled={saving}
-                className="min-h-[44px] flex-1 rounded-[var(--radius-button)] bg-primary px-4 py-2 text-sm font-medium text-white active:bg-primary-hover disabled:opacity-50"
+                className="flex-1 py-3 text-xs font-bold text-white bg-primary rounded shadow-[0_0_15px_-4px_var(--color-primary)] hover:bg-primary-hover active:scale-[0.98] transition-all disabled:opacity-50 uppercase tracking-widest"
               >
-                {saving ? "Saving..." : "Confirm"}
+                {saving ? "SAVING..." : (saved ? "UPDATE" : "CONFIRM LOG")}
               </button>
             </div>
-          )}
-        </>
-      )}
+            {error && <p className="text-xs text-danger font-mono text-center">{error}</p>}
+          </div>
+        )}
+
+        {/* Read Only View */}
+        {!editing && saved && (
+          <div className="flex items-center justify-between">
+            <div className="flex gap-4">
+              {form.sets && (
+                <div className="flex flex-col">
+                  <span className="text-2xl font-mono leading-none">{form.sets}</span>
+                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">SETS</span>
+                </div>
+              )}
+              {form.reps && (
+                <div className="flex flex-col">
+                  <span className="text-2xl font-mono leading-none">{form.reps}</span>
+                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">REPS</span>
+                </div>
+              )}
+              {form.weight && (
+                <div className="flex flex-col">
+                  <span className="text-2xl font-mono leading-none">{form.weight}</span>
+                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">KG</span>
+                </div>
+              )}
+              {form.duration_minutes && (
+                <div className="flex flex-col">
+                  <span className="text-2xl font-mono leading-none">{form.duration_minutes}</span>
+                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">MIN</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setEditing(true)}
+              className="p-2 text-text-tertiary hover:text-primary transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

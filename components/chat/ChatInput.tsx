@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 type ChatInputProps = {
   input: string;
@@ -12,73 +12,79 @@ type ChatInputProps = {
 export function ChatInput({ input, onChange, onSubmit, isLoading }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Auto-resize
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    }
+  }, [input]);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     onSubmit();
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
-    }
-  }
-
-  function handleInput() {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+      // Directly call onSubmit logic wrapper
+      if (!input.trim() || isLoading) return;
+      onSubmit();
     }
   }
 
   const hasText = input.trim().length > 0;
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 pb-3 pt-2">
-      <div className="relative flex-1">
+    <form
+      onSubmit={handleSubmit}
+      className="relative flex items-end gap-3 px-4 pb-4 pt-2 w-full max-w-3xl mx-auto"
+    >
+      <div className="relative flex-1 group">
+        <div className="absolute inset-0 rounded-lg bg-surface border border-border transition-all group-focus-within:border-primary/50 group-focus-within:shadow-[0_0_15px_-3px_var(--color-primary-muted)]" />
+
         <textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => {
-            onChange(e.target.value);
-            handleInput();
-          }}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type what you did..."
+          placeholder="ENTER COMMAND..."
           rows={1}
           enterKeyHint="send"
-          className="w-full resize-none rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-[16px] leading-snug text-text-primary placeholder:text-text-tertiary focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-[border-color,box-shadow]"
+          className="relative w-full resize-none bg-transparent px-4 py-3 text-[16px] font-medium text-text-primary placeholder:text-text-tertiary placeholder:text-[12px] placeholder:tracking-widest placeholder:uppercase focus:outline-none max-h-[120px]"
           disabled={isLoading}
           autoComplete="off"
         />
       </div>
+
       <button
         type="submit"
         disabled={!hasText || isLoading}
-        className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[var(--radius-card)] transition-all ${
-          hasText && !isLoading
-            ? "bg-primary text-white shadow-[0_0_20px_-4px_var(--color-glow)] active:scale-95"
-            : "bg-surface-elevated text-text-tertiary"
-        }`}
-        aria-label="Send message"
+        className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-lg transition-all border ${hasText && !isLoading
+            ? "bg-primary border-primary text-white shadow-[0_0_15px_-3px_var(--color-primary)] active:scale-95"
+            : "bg-surface border-border text-text-tertiary opacity-50 cursor-not-allowed"
+          }`}
+        aria-label="Execute"
       >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M5 12h14M12 5l7 7-7 7" />
-        </svg>
+        {isLoading ? (
+          <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        ) : (
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        )}
       </button>
     </form>
   );
