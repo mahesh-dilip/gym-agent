@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
 
 type GoalData = {
@@ -24,12 +24,21 @@ const GOAL_TYPE_LABELS: Record<string, string> = {
 };
 
 export function GoalCard({ data, isLoading }: Props) {
-  const { persistGoal } = useSharedState();
+  const { state, persistGoal } = useSharedState();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Hydrate: if this goal already exists, mark as saved
+  useEffect(() => {
+    if (state.userGoals.some((g) => g.title === data.title)) {
+      setSaved(true);
+    }
+  }, [state.userGoals, data.title]);
 
   async function handleConfirm() {
     setSaving(true);
+    setError(null);
     const result = await persistGoal({
       title: data.title,
       description: data.description,
@@ -38,7 +47,11 @@ export function GoalCard({ data, isLoading }: Props) {
       status: "active",
     });
     setSaving(false);
-    if (result) setSaved(true);
+    if (result) {
+      setSaved(true);
+    } else {
+      setError("Failed to save. Tap to retry.");
+    }
   }
 
   if (isLoading) {
@@ -69,6 +82,10 @@ export function GoalCard({ data, isLoading }: Props) {
           <span className="text-xs text-text-secondary">Target: </span>
           <span className="text-xs text-text-primary">{data.target}</span>
         </div>
+      )}
+
+      {error && (
+        <p className="mt-2 text-xs text-danger">{error}</p>
       )}
 
       {!saved && (

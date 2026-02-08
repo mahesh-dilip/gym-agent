@@ -107,8 +107,17 @@ export function formatContextForPrompt(ctx: AgentContext): string {
     ? ctx.goals.map((g) => `  - ${g.title} (${g.goal_type}): ${g.target || g.description}`).join("\n")
     : "  No active goals";
 
+  const planSummary = ctx.plannedExercises && Array.isArray(ctx.plannedExercises) && ctx.plannedExercises.length > 0
+    ? (ctx.plannedExercises as Array<{ name: string; target_sets: number; notes?: string }>)
+        .map((e) => `  - ${e.name} (${e.target_sets} sets)${e.notes ? ` — ${e.notes}` : ""}`)
+        .join("\n")
+    : "  No plan set";
+
   return `TODAY: ${ctx.todayDate}
 SESSION STATUS: ${ctx.sessionStatus}
+
+PLANNED WORKOUT:
+${planSummary}
 
 EXERCISES DONE TODAY:
 ${exercisesSummary}

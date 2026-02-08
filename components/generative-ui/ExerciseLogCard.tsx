@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
 
 type ExerciseData = {
@@ -21,14 +21,27 @@ type Props = {
 };
 
 export function ExerciseLogCard({ data, isLoading }: Props) {
-  const { persistExercise } = useSharedState();
+  const { state, persistExercise } = useSharedState();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<ExerciseData>(data);
+
+  // Hydrate: if this exercise is already in the DB, mark as saved
+  useEffect(() => {
+    if (
+      state.currentSession.completedExercises.some(
+        (e) => e.exercise_name === data.exercise_name
+      )
+    ) {
+      setSaved(true);
+    }
+  }, [state.currentSession.completedExercises, data.exercise_name]);
 
   async function handleConfirm() {
     setSaving(true);
+    setError(null);
     const result = await persistExercise({
       session_id: "",
       exercise_name: form.exercise_name,
@@ -46,6 +59,8 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
     if (result) {
       setSaved(true);
       setEditing(false);
+    } else {
+      setError("Failed to save. Tap Confirm to retry.");
     }
   }
 
@@ -58,14 +73,22 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
     );
   }
 
-  const categoryIcon =
-    form.category === "cardio" ? "cardio" : form.category === "flexibility" ? "flex" : "strength";
+  const categoryLabel =
+    form.category === "cardio"
+      ? "Cardio"
+      : form.category === "flexibility"
+        ? "Flexibility"
+        : "Strength";
+
+  const showDuration = form.category === "cardio" || form.category === "flexibility";
+  const showDistance = form.category === "cardio";
+  const showStrength = form.category === "strength";
 
   return (
     <div className="rounded-[var(--radius-card)] border border-border bg-surface p-4">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-          {categoryIcon}
+          {categoryLabel}
         </span>
         {saved && (
           <span className="text-xs font-medium text-success">Saved</span>
@@ -78,7 +101,7 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
 
       {editing ? (
         <div className="mt-3 space-y-3">
-          {form.category === "strength" && (
+          {showStrength && (
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="mb-1 block text-xs text-text-secondary">Sets</label>
@@ -112,8 +135,8 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
               </div>
             </div>
           )}
-          {form.category === "cardio" && (
-            <div className="flex gap-3">
+          {showDuration && (
+            <div className={`flex gap-3`}>
               <div className="flex-1">
                 <label className="mb-1 block text-xs text-text-secondary">Duration (min)</label>
                 <input
@@ -124,16 +147,18 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
                   inputMode="decimal"
                 />
               </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs text-text-secondary">Distance (km)</label>
-                <input
-                  type="number"
-                  value={form.distance_km ?? ""}
-                  onChange={(e) => setForm({ ...form, distance_km: e.target.value ? Number(e.target.value) : undefined })}
-                  className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
-                  inputMode="decimal"
-                />
-              </div>
+              {showDistance && (
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs text-text-secondary">Distance (km)</label>
+                  <input
+                    type="number"
+                    value={form.distance_km ?? ""}
+                    onChange={(e) => setForm({ ...form, distance_km: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full rounded-[var(--radius-button)] border border-border bg-background px-3 py-2 text-text-primary"
+                    inputMode="decimal"
+                  />
+                </div>
+              )}
             </div>
           )}
           <div className="flex gap-2 pt-1">
@@ -165,10 +190,15 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
               </span>
             )}
             {form.duration_minutes && <span>{form.duration_minutes} min</span>}
+            {form.duration_minutes && form.distance_km && <span>·</span>}
             {form.distance_km && <span>{form.distance_km} km</span>}
           </div>
           {form.notes && (
             <p className="mt-1 text-xs text-text-secondary">{form.notes}</p>
+          )}
+
+          {error && (
+            <p className="mt-2 text-xs text-danger">{error}</p>
           )}
 
           {!saved && (

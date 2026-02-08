@@ -9,6 +9,14 @@ type Props = {
   isLoading: boolean;
 };
 
+const ACTIVITY_LABELS: Record<string, string> = {
+  foam_rolling: "Foam Rolling",
+  stretching: "Stretching",
+  vyper: "Vyper Recovery",
+  massage_gun: "Massage Gun",
+  other: "Recovery",
+};
+
 export function SessionSummaryCard({ data, isLoading }: Props) {
   const { state, endSession } = useSharedState();
   const [ended, setEnded] = useState(false);
@@ -98,7 +106,9 @@ export function SessionSummaryCard({ data, isLoading }: Props) {
           <div className="space-y-1">
             {recovery.map((r) => (
               <div key={r.id} className="flex items-center justify-between text-sm">
-                <span className="text-text-primary">{r.activity}</span>
+                <span className="text-text-primary">
+                  {ACTIVITY_LABELS[r.activity] || r.activity}
+                </span>
                 <span className="text-text-secondary">
                   {r.body_area}
                   {r.duration_minutes ? ` · ${r.duration_minutes}min` : ""}

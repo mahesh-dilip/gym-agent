@@ -1,20 +1,34 @@
 "use client";
 
+import type { SessionStatus } from "@/lib/state/types";
+
 type QuickActionsProps = {
   onAction: (text: string) => void;
   disabled: boolean;
+  sessionStatus: SessionStatus;
 };
 
-const ACTIONS = [
-  { label: "What should I do?", text: "What should I do today?" },
-  { label: "What next?", text: "What else should I do?" },
-  { label: "End Session", text: "I'm done for today" },
-];
+function getActions(sessionStatus: SessionStatus) {
+  if (sessionStatus === "in_progress") {
+    return [
+      { label: "What next?", text: "What should I do next?" },
+      { label: "Log Recovery", text: "I want to log a recovery activity" },
+      { label: "End Session", text: "I'm done for today" },
+    ];
+  }
+  // not_started or completed
+  return [
+    { label: "What should I do?", text: "What should I do today?" },
+    { label: "Set a Goal", text: "I want to set a fitness goal" },
+  ];
+}
 
-export function QuickActions({ onAction, disabled }: QuickActionsProps) {
+export function QuickActions({ onAction, disabled, sessionStatus }: QuickActionsProps) {
+  const actions = getActions(sessionStatus);
+
   return (
     <div className="flex gap-2 overflow-x-auto px-4 py-2 hide-scrollbar">
-      {ACTIONS.map((action) => (
+      {actions.map((action) => (
         <button
           key={action.label}
           onClick={() => onAction(action.text)}

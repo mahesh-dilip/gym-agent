@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
 
 type Exercise = {
@@ -21,23 +21,28 @@ type Props = {
 };
 
 export function WorkoutPlanCard({ data, isLoading }: Props) {
-  const { ensureSession, dispatch } = useSharedState();
+  const { state, persistPlan } = useSharedState();
   const [started, setStarted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [completed, setCompleted] = useState<Set<number>>(new Set());
 
+  // Hydrate: if planned exercises already exist in the session, mark as started
+  useEffect(() => {
+    if (state.currentSession.plannedExercises.length > 0) {
+      setStarted(true);
+    }
+  }, [state.currentSession.plannedExercises]);
+
   async function handleStart() {
     setStarting(true);
     try {
-      await ensureSession();
-      dispatch({
-        type: "SET_PLAN",
-        payload: data.exercises.map((e) => ({
+      await persistPlan(
+        data.exercises.map((e) => ({
           name: e.name,
           target_sets: e.target_sets,
           notes: e.notes,
-        })),
-      });
+        }))
+      );
       setStarted(true);
     } finally {
       setStarting(false);

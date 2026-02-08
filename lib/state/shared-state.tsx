@@ -136,6 +136,7 @@ type SharedStateContextType = {
   persistExercise: (exercise: Omit<ExerciseLog, "id" | "user_id" | "logged_at">) => Promise<ExerciseLog | null>;
   persistRecovery: (recovery: Omit<RecoveryLog, "id" | "user_id" | "logged_at">) => Promise<RecoveryLog | null>;
   persistGoal: (goal: Omit<Goal, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Goal | null>;
+  persistPlan: (exercises: Array<{ name: string; target_sets: number; notes?: string }>) => Promise<void>;
   ensureSession: () => Promise<string>;
   endSession: (notes?: string) => Promise<void>;
 };
@@ -300,6 +301,25 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
     [supabase]
   );
 
+  const persistPlan = useCallback(
+    async (exercises: Array<{ name: string; target_sets: number; notes?: string }>) => {
+      const sessionId = await ensureSession();
+
+      const { error } = await supabase
+        .from("workout_sessions")
+        .update({ planned_exercises: exercises })
+        .eq("id", sessionId);
+
+      if (error) {
+        console.error("Failed to persist plan:", error);
+        return;
+      }
+
+      dispatch({ type: "SET_PLAN", payload: exercises });
+    },
+    [supabase, ensureSession]
+  );
+
   const endSession = useCallback(
     async (notes?: string) => {
       if (!state.currentSession.id) return;
@@ -334,6 +354,7 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
         persistExercise,
         persistRecovery,
         persistGoal,
+        persistPlan,
         ensureSession,
         endSession,
       }}

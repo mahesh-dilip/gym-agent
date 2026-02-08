@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
 
 type RecoveryData = {
@@ -25,14 +25,27 @@ const ACTIVITY_LABELS: Record<string, string> = {
 };
 
 export function RecoveryLogCard({ data, isLoading }: Props) {
-  const { persistRecovery } = useSharedState();
+  const { state, persistRecovery } = useSharedState();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<RecoveryData>(data);
+
+  // Hydrate: if this recovery is already in the DB, mark as saved
+  useEffect(() => {
+    if (
+      state.currentSession.completedRecovery.some(
+        (r) => r.activity === data.activity && r.body_area === data.body_area
+      )
+    ) {
+      setSaved(true);
+    }
+  }, [state.currentSession.completedRecovery, data.activity, data.body_area]);
 
   async function handleConfirm() {
     setSaving(true);
+    setError(null);
     const result = await persistRecovery({
       session_id: "",
       activity: form.activity,
@@ -45,6 +58,8 @@ export function RecoveryLogCard({ data, isLoading }: Props) {
     if (result) {
       setSaved(true);
       setEditing(false);
+    } else {
+      setError("Failed to save. Tap Confirm to retry.");
     }
   }
 
@@ -128,6 +143,10 @@ export function RecoveryLogCard({ data, isLoading }: Props) {
           </div>
           {form.notes && (
             <p className="mt-1 text-xs text-text-secondary">{form.notes}</p>
+          )}
+
+          {error && (
+            <p className="mt-2 text-xs text-danger">{error}</p>
           )}
 
           {!saved && (
