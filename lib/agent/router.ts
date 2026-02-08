@@ -78,6 +78,18 @@ const SONNET_PATTERNS = [
   /last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
   /\d{1,2}\/\d{1,2}/,
 
+  // Delete / edit / undo
+  /delete/i,
+  /remove/i,
+  /undo/i,
+  /wrong/i,
+  /correct/i,
+  /that'?s.*not.*right/i,
+  /made.*mistake/i,
+  /shouldn'?t.*have/i,
+  /get.*rid/i,
+  /clear/i,
+
   // Recovery & injury
   /sore/i,
   /pain/i,

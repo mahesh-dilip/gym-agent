@@ -86,6 +86,17 @@ function sharedStateReducer(state: SharedState, action: Action): SharedState {
         },
       };
 
+    case "REMOVE_EXERCISES":
+      return {
+        ...state,
+        currentSession: {
+          ...state.currentSession,
+          completedExercises: state.currentSession.completedExercises.filter(
+            (e) => !action.payload.includes(e.id)
+          ),
+        },
+      };
+
     case "LOG_RECOVERY":
       return {
         ...state,

@@ -34,6 +34,7 @@ export type Action =
   | { type: "LOAD_CONTEXT"; payload: { session: WorkoutSession | null; goals: Goal[]; history: WorkoutSession[] } }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "UPDATE_EXERCISE"; payload: ExerciseLog }
+  | { type: "REMOVE_EXERCISES"; payload: string[] }
   | { type: "START_SESSION"; payload: WorkoutSession };
 
 export const initialState: SharedState = {

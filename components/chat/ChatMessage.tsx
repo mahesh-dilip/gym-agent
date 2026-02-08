@@ -10,6 +10,8 @@ import { GoalCard } from "@/components/generative-ui/GoalCard";
 import { BackfillCard } from "@/components/generative-ui/BackfillCard";
 import { ExerciseInfoCard } from "@/components/generative-ui/ExerciseInfoCard";
 import { ProgressCard } from "@/components/generative-ui/ProgressCard";
+import { DeleteExerciseCard } from "@/components/generative-ui/DeleteExerciseCard";
+import { EditExerciseCard } from "@/components/generative-ui/EditExerciseCard";
 
 function getToolComponent(toolName: string, input: unknown, isLoading: boolean) {
   const data = input as Record<string, unknown>;
@@ -30,6 +32,10 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
       return <ExerciseInfoCard data={data as never} isLoading={isLoading} />;
     case "show_progress":
       return <ProgressCard data={data as never} isLoading={isLoading} />;
+    case "delete_exercise":
+      return <DeleteExerciseCard data={data as never} isLoading={isLoading} />;
+    case "edit_exercise":
+      return <EditExerciseCard data={data as never} isLoading={isLoading} />;
     default:
       return null;
   }
@@ -107,9 +113,15 @@ export function ChatMessage({ message }: { message: UIMessage }) {
             const isToolLoading =
               "state" in part && part.state === "input-streaming";
 
+            const output =
+              "output" in part ? part.output : undefined;
             const input = "input" in part ? part.input : undefined;
 
-            const component = getToolComponent(toolName, input, isToolLoading);
+            const component = getToolComponent(
+              toolName,
+              output ?? input,
+              isToolLoading
+            );
             if (component) {
               return (
                 <div key={i} className={i > 0 ? "mt-2" : ""}>

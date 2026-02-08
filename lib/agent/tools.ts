@@ -89,6 +89,201 @@ export function createAgentTools(userId: string) {
   return {
     ...sharedTools,
 
+    delete_exercise: tool({
+      description:
+        "Delete one or more logged exercises from today's session. Use when the user says to remove, delete, or undo an exercise.",
+      inputSchema: z.object({
+        exercise_name: z
+          .string()
+          .describe("Name of the exercise to delete (case-insensitive match)"),
+        delete_all_matching: z
+          .boolean()
+          .default(true)
+          .describe(
+            "If true, delete ALL entries matching this name in today's session. If false, delete only the most recent one."
+          ),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          const today = new Date().toISOString().split("T")[0];
+
+          const { data: session } = await supabase
+            .from("workout_sessions")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("date", today)
+            .maybeSingle();
+
+          if (!session) {
+            return {
+              status: "error",
+              exercise_name: input.exercise_name,
+              message: "No active session found for today",
+            };
+          }
+
+          const { data: exercises } = await supabase
+            .from("exercise_logs")
+            .select("id, exercise_name, sets, reps, weight, weight_unit, duration_minutes")
+            .eq("session_id", session.id)
+            .ilike("exercise_name", `%${input.exercise_name}%`)
+            .order("logged_at", { ascending: false });
+
+          if (!exercises || exercises.length === 0) {
+            return {
+              status: "not_found",
+              exercise_name: input.exercise_name,
+              message: `No exercise matching "${input.exercise_name}" found in today's session`,
+            };
+          }
+
+          const toDelete = input.delete_all_matching
+            ? exercises
+            : [exercises[0]];
+          const ids = toDelete.map((e) => e.id);
+
+          const { error } = await supabase
+            .from("exercise_logs")
+            .delete()
+            .in("id", ids);
+
+          if (error) {
+            return {
+              status: "error",
+              exercise_name: input.exercise_name,
+              message: "Failed to delete exercises",
+            };
+          }
+
+          return {
+            status: "deleted",
+            exercise_name: input.exercise_name,
+            deleted_count: toDelete.length,
+            deleted_exercises: toDelete,
+            deleted_ids: ids,
+          };
+        } catch {
+          return {
+            status: "error",
+            exercise_name: input.exercise_name,
+            message: "Failed to delete",
+          };
+        }
+      },
+    }),
+
+    edit_exercise: tool({
+      description:
+        "Edit/update an exercise already logged in today's session. Use when the user wants to correct sets, reps, weight, or other details on a previously logged exercise.",
+      inputSchema: z.object({
+        exercise_name: z
+          .string()
+          .describe("Name of the exercise to edit (case-insensitive match)"),
+        sets: z.number().optional().describe("New number of sets"),
+        reps: z.number().optional().describe("New reps per set"),
+        weight: z.number().optional().describe("New weight"),
+        weight_unit: z
+          .enum(["kg", "lbs"])
+          .optional()
+          .describe("New weight unit"),
+        duration_minutes: z
+          .number()
+          .optional()
+          .describe("New duration in minutes"),
+        distance_km: z
+          .number()
+          .optional()
+          .describe("New distance in km"),
+        notes: z.string().optional().describe("New notes"),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          const today = new Date().toISOString().split("T")[0];
+
+          const { data: session } = await supabase
+            .from("workout_sessions")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("date", today)
+            .maybeSingle();
+
+          if (!session) {
+            return {
+              status: "error",
+              exercise_name: input.exercise_name,
+              message: "No active session found for today",
+            };
+          }
+
+          const { data: exercises } = await supabase
+            .from("exercise_logs")
+            .select("*")
+            .eq("session_id", session.id)
+            .ilike("exercise_name", `%${input.exercise_name}%`)
+            .order("logged_at", { ascending: false })
+            .limit(1);
+
+          if (!exercises || exercises.length === 0) {
+            return {
+              status: "not_found",
+              exercise_name: input.exercise_name,
+              message: `No exercise matching "${input.exercise_name}" found in today's session`,
+            };
+          }
+
+          const exercise = exercises[0];
+          const updates: Record<string, unknown> = {};
+          if (input.sets !== undefined) updates.sets = input.sets;
+          if (input.reps !== undefined) updates.reps = input.reps;
+          if (input.weight !== undefined) updates.weight = input.weight;
+          if (input.weight_unit !== undefined)
+            updates.weight_unit = input.weight_unit;
+          if (input.duration_minutes !== undefined)
+            updates.duration_minutes = input.duration_minutes;
+          if (input.distance_km !== undefined)
+            updates.distance_km = input.distance_km;
+          if (input.notes !== undefined) updates.notes = input.notes;
+
+          if (Object.keys(updates).length === 0) {
+            return {
+              status: "error",
+              exercise_name: input.exercise_name,
+              message: "No fields to update",
+            };
+          }
+
+          const { data: updated, error } = await supabase
+            .from("exercise_logs")
+            .update(updates)
+            .eq("id", exercise.id)
+            .select()
+            .single();
+
+          if (error || !updated) {
+            return {
+              status: "error",
+              exercise_name: input.exercise_name,
+              message: "Failed to update exercise",
+            };
+          }
+
+          return {
+            status: "updated",
+            exercise_name: updated.exercise_name,
+            exercise: updated,
+          };
+        } catch {
+          return {
+            status: "error",
+            exercise_name: input.exercise_name,
+            message: "Failed to update",
+          };
+        }
+      },
+    }),
+
     show_progress: tool({
       description:
         "Show the user's progress history for a specific exercise. Use when user asks about their progress, personal best, or history for an exercise.",
@@ -218,6 +413,12 @@ export function createAgentTools(userId: string) {
             }
             sessionId = newSession.id;
           }
+
+          // Remove existing exercise logs for this session to prevent duplicates
+          await supabase
+            .from("exercise_logs")
+            .delete()
+            .eq("session_id", sessionId);
 
           // Insert exercise logs
           const exerciseRows = input.exercises.map((e, i) => ({
