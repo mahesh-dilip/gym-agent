@@ -36,32 +36,40 @@ export function ChatInput({ input, onChange, onSubmit, isLoading }: ChatInputPro
     }
   }
 
+  const hasText = input.trim().length > 0;
+
   return (
     <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 pb-3 pt-2">
-      <textarea
-        ref={textareaRef}
-        value={input}
-        onChange={(e) => {
-          onChange(e.target.value);
-          handleInput();
-        }}
-        onKeyDown={handleKeyDown}
-        placeholder="Type what you did..."
-        rows={1}
-        enterKeyHint="send"
-        className="flex-1 resize-none rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-[16px] leading-snug text-text-primary placeholder:text-text-secondary/50 focus:border-primary focus:outline-none"
-        disabled={isLoading}
-        autoComplete="off"
-      />
+      <div className="relative flex-1">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => {
+            onChange(e.target.value);
+            handleInput();
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Type what you did..."
+          rows={1}
+          enterKeyHint="send"
+          className="w-full resize-none rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-[16px] leading-snug text-text-primary placeholder:text-text-tertiary focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-[border-color,box-shadow]"
+          disabled={isLoading}
+          autoComplete="off"
+        />
+      </div>
       <button
         type="submit"
-        disabled={!input.trim() || isLoading}
-        className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[var(--radius-button)] bg-primary text-white transition-colors hover:bg-primary-hover disabled:opacity-30"
+        disabled={!hasText || isLoading}
+        className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[var(--radius-card)] transition-all ${
+          hasText && !isLoading
+            ? "bg-primary text-white shadow-[0_0_20px_-4px_var(--color-glow)] active:scale-95"
+            : "bg-surface-elevated text-text-tertiary"
+        }`}
         aria-label="Send message"
       >
         <svg
-          width="20"
-          height="20"
+          width="18"
+          height="18"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -69,8 +77,7 @@ export function ChatInput({ input, onChange, onSubmit, isLoading }: ChatInputPro
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <line x1="22" y1="2" x2="11" y2="13" />
-          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       </button>
     </form>

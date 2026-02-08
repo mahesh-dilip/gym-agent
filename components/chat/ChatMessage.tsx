@@ -41,7 +41,7 @@ function renderInlineMarkdown(text: string): ReactNode[] {
   return parts.map((segment, i) => {
     if (segment.startsWith("**") && segment.endsWith("**")) {
       return (
-        <strong key={i} className="font-semibold">
+        <strong key={i} className="font-semibold text-text-primary">
           {segment.slice(2, -2)}
         </strong>
       );
@@ -53,7 +53,7 @@ function renderInlineMarkdown(text: string): ReactNode[] {
       return (
         <code
           key={i}
-          className="rounded bg-surface-elevated px-1.5 py-0.5 text-[13px]"
+          className="rounded-md bg-surface-elevated px-1.5 py-0.5 font-mono text-[13px] text-primary-hover"
         >
           {segment.slice(1, -1)}
         </code>
@@ -88,7 +88,7 @@ export function ChatMessage({ message }: { message: UIMessage }) {
                 className={`rounded-[var(--radius-card)] px-4 py-3 ${
                   isUser
                     ? "bg-primary text-white"
-                    : "bg-surface text-text-primary"
+                    : "border border-border bg-surface text-text-primary"
                 } ${i > 0 ? "mt-2" : ""}`}
               >
                 <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
@@ -98,7 +98,6 @@ export function ChatMessage({ message }: { message: UIMessage }) {
             );
           }
 
-          // Handle typed tool parts (type: "tool-{name}") and dynamic tool parts
           if (part.type === "dynamic-tool" || part.type.startsWith("tool-")) {
             const toolName =
               part.type === "dynamic-tool"

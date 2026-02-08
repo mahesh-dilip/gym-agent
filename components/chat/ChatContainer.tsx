@@ -24,7 +24,6 @@ export function ChatContainer({ initialMessages }: Props) {
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  // Smart auto-scroll: always on new message, only if near bottom during streaming
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -51,7 +50,6 @@ export function ChatContainer({ initialMessages }: Props) {
     sendMessage({ text });
   }
 
-  // Session recovery: chat empty but active session exists in Supabase
   const session = state.currentSession;
   const hasActiveSession = session.status === "in_progress";
   const hasPlan = session.plannedExercises.length > 0;
@@ -62,44 +60,81 @@ export function ChatContainer({ initialMessages }: Props) {
     hasActiveSession &&
     (hasPlan || hasExercises);
 
+  const doneCount = hasPlan
+    ? session.plannedExercises.filter((p) =>
+        session.completedExercises.some(
+          (e) => e.exercise_name.toLowerCase() === p.name.toLowerCase()
+        )
+      ).length
+    : 0;
+
   return (
     <div className="flex h-full flex-col">
-      {/* Chat messages area */}
       <div
         ref={scrollRef}
         className="scroll-container hide-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-2"
       >
-        {/* Default empty state */}
+        {/* Empty state */}
         {messages.length === 0 && !state.isLoading && !showRecovery && (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
-              <p className="text-lg font-medium text-text-primary">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  className="text-primary"
+                >
+                  <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M4.5 6.5v11M19.5 6.5v11" />
+                </svg>
+              </div>
+              <p className="text-[16px] font-semibold tracking-tight text-text-primary">
                 Ready to train?
               </p>
-              <p className="mt-1 text-sm text-text-secondary">
+              <p className="mt-1 text-[13px] text-text-tertiary">
                 Tell me what you did or ask what to do next.
               </p>
             </div>
           </div>
         )}
 
-        {/* Session recovery — chat lost but session exists in DB */}
+        {/* Session recovery */}
         {showRecovery && (
           <div className="flex h-full items-center justify-center">
             <div className="w-full max-w-sm">
-              <div className="rounded-[var(--radius-card)] border border-border bg-surface p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-success" />
-                  <p className="text-sm font-medium text-text-primary">
+              <div className="rounded-[var(--radius-card)] border border-border bg-surface p-5">
+                <div className="mb-4 flex items-center gap-2.5">
+                  <div className="relative">
+                    <div className="h-2 w-2 rounded-full bg-success" />
+                    <div className="absolute inset-0 animate-ping rounded-full bg-success/40" />
+                  </div>
+                  <p className="text-[14px] font-semibold text-text-primary">
                     Session in progress
                   </p>
                 </div>
 
                 {hasPlan && (
-                  <div className="mb-3">
-                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-text-secondary">
-                      Your plan
-                    </p>
+                  <div className="mb-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
+                        Your plan
+                      </p>
+                      <span className="stat-value text-[11px] font-medium text-text-tertiary">
+                        {doneCount}/{session.plannedExercises.length}
+                      </span>
+                    </div>
+                    <div className="mb-3 h-1 overflow-hidden rounded-full bg-surface-elevated">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{
+                          width: `${(doneCount / session.plannedExercises.length) * 100}%`,
+                        }}
+                      />
+                    </div>
                     {session.plannedExercises.map((p, i) => {
                       const done = session.completedExercises.some(
                         (e) =>
@@ -109,34 +144,35 @@ export function ChatContainer({ initialMessages }: Props) {
                       return (
                         <div
                           key={i}
-                          className="flex items-center gap-2 py-0.5"
+                          className="flex items-center gap-2.5 py-0.5"
                         >
-                          <span
-                            className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+                          <div
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] ${
                               done
-                                ? "border-success bg-success text-background"
-                                : "border-border"
+                                ? "bg-success"
+                                : "border border-border"
                             }`}
                           >
                             {done && (
                               <svg
-                                width="8"
-                                height="8"
+                                width="9"
+                                height="9"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="3.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
+                                className="text-background"
                               >
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
                             )}
-                          </span>
+                          </div>
                           <span
-                            className={`text-sm ${
+                            className={`text-[13px] ${
                               done
-                                ? "text-text-secondary line-through"
+                                ? "text-text-tertiary line-through"
                                 : "text-text-primary"
                             }`}
                           >
@@ -149,11 +185,11 @@ export function ChatContainer({ initialMessages }: Props) {
                 )}
 
                 {!hasPlan && hasExercises && (
-                  <div className="mb-3">
-                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-secondary">
+                  <div className="mb-4">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">
                       Logged so far
                     </p>
-                    <p className="text-sm text-text-secondary">
+                    <p className="text-[13px] text-text-secondary">
                       {session.completedExercises
                         .map((e) => e.exercise_name)
                         .join(", ")}
@@ -166,7 +202,7 @@ export function ChatContainer({ initialMessages }: Props) {
                     handleQuickAction("What should I do next?")
                   }
                   disabled={isLoading}
-                  className="w-full rounded-[var(--radius-button)] bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors active:bg-primary/80 disabled:opacity-40"
+                  className="w-full rounded-[var(--radius-button)] bg-primary px-4 py-2.5 text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40"
                 >
                   Continue workout
                 </button>
@@ -179,24 +215,24 @@ export function ChatContainer({ initialMessages }: Props) {
           <ChatMessage key={message.id} message={message} />
         ))}
 
-        {/* Loading dots */}
+        {/* Loading indicator */}
         {isLoading && messages[messages.length - 1]?.role === "user" && (
-          <div className="mb-3 flex items-start gap-2">
-            <div className="rounded-[var(--radius-card)] bg-surface px-4 py-3">
-              <div className="flex gap-1">
-                <span className="h-2 w-2 animate-bounce rounded-full bg-text-secondary [animation-delay:0ms]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-text-secondary [animation-delay:150ms]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-text-secondary [animation-delay:300ms]" />
+          <div className="mb-3 flex items-start">
+            <div className="rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3">
+              <div className="flex gap-1.5">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-tertiary [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-tertiary [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-tertiary [animation-delay:300ms]" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Error display */}
+        {/* Error */}
         {status === "error" && (
           <div className="mb-3 flex items-start">
-            <div className="rounded-[var(--radius-card)] border border-danger/30 bg-danger/10 px-4 py-3">
-              <p className="text-sm text-danger">
+            <div className="rounded-[var(--radius-card)] border border-danger/20 bg-danger-muted px-4 py-3">
+              <p className="text-[13px] text-danger">
                 {error?.message || "Something went wrong."}
               </p>
               <button
@@ -215,7 +251,7 @@ export function ChatContainer({ initialMessages }: Props) {
                     if (text) sendMessage({ text });
                   }
                 }}
-                className="mt-2 text-sm font-medium text-danger underline"
+                className="mt-1.5 text-[13px] font-medium text-danger underline"
               >
                 Retry
               </button>
@@ -224,7 +260,7 @@ export function ChatContainer({ initialMessages }: Props) {
         )}
       </div>
 
-      {/* Bottom area: quick actions + input */}
+      {/* Bottom */}
       <div className="shrink-0 border-t border-border bg-background safe-bottom">
         <QuickActions
           onAction={handleQuickAction}

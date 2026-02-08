@@ -58,13 +58,17 @@ export function QuickActions({
   const actions = getActions(sessionStatus, plannedExercises, completedExercises);
 
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 py-2 hide-scrollbar">
-      {actions.map((action) => (
+    <div className="flex gap-1.5 overflow-x-auto px-4 py-2 hide-scrollbar">
+      {actions.map((action, i) => (
         <button
           key={action.label}
           onClick={() => onAction(action.text)}
           disabled={disabled}
-          className="shrink-0 rounded-full border border-border bg-surface px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-elevated hover:text-text-primary active:bg-surface-elevated disabled:opacity-40"
+          className={`shrink-0 rounded-[var(--radius-pill)] px-3.5 py-1.5 text-[13px] font-medium transition-all active:scale-95 disabled:opacity-30 ${
+            i === 0 && sessionStatus === "in_progress"
+              ? "bg-primary-muted text-primary-hover border border-primary/20"
+              : "border border-border bg-surface text-text-secondary hover:text-text-primary"
+          }`}
         >
           {action.label}
         </button>
