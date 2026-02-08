@@ -43,6 +43,13 @@ export async function buildAgentContext(): Promise<AgentContext> {
   const todayStr = format(today, "yyyy-MM-dd");
   const sevenDaysAgo = format(subDays(today, 7), "yyyy-MM-dd");
 
+  // Auto-complete stale sessions from previous days that were never ended
+  await supabase
+    .from("workout_sessions")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("status", "in_progress")
+    .lt("date", todayStr);
+
   const [goalsResult, historyResult, sessionResult] = await Promise.all([
     supabase.from("goals").select("*").eq("status", "active"),
     supabase

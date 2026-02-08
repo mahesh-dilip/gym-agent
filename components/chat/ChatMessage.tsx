@@ -8,6 +8,8 @@ import { WorkoutPlanCard } from "@/components/generative-ui/WorkoutPlanCard";
 import { SessionSummaryCard } from "@/components/generative-ui/SessionSummaryCard";
 import { GoalCard } from "@/components/generative-ui/GoalCard";
 import { BackfillCard } from "@/components/generative-ui/BackfillCard";
+import { ExerciseInfoCard } from "@/components/generative-ui/ExerciseInfoCard";
+import { ProgressCard } from "@/components/generative-ui/ProgressCard";
 
 function getToolComponent(toolName: string, input: unknown, isLoading: boolean) {
   const data = input as Record<string, unknown>;
@@ -24,6 +26,10 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
       return <GoalCard data={data as never} isLoading={isLoading} />;
     case "backfill_workout":
       return <BackfillCard data={data as never} isLoading={isLoading} />;
+    case "exercise_info":
+      return <ExerciseInfoCard data={data as never} isLoading={isLoading} />;
+    case "show_progress":
+      return <ProgressCard data={data as never} isLoading={isLoading} />;
     default:
       return null;
   }

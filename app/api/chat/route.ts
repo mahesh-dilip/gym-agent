@@ -1,18 +1,29 @@
-import { streamText, type UIMessage, stepCountIs, convertToModelMessages } from "ai";
+import {
+  streamText,
+  type UIMessage,
+  stepCountIs,
+  convertToModelMessages,
+  createIdGenerator,
+} from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { buildAgentContext, formatContextForPrompt } from "@/lib/agent/context-builder";
 import { routeIntent } from "@/lib/agent/router";
 import { getHaikuSystemPrompt, getSonnetSystemPrompt } from "@/lib/agent/prompts";
 import { createAgentTools } from "@/lib/agent/tools";
 import { createClient } from "@/lib/supabase/server";
+import { saveChat, getChatId } from "@/lib/chat-store";
 
 export const maxDuration = 30;
+
+const generateMessageId = createIdGenerator({ prefix: "msg", size: 16 });
 
 export async function POST(req: Request) {
   try {
     // Get authenticated user
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return new Response(
@@ -23,11 +34,14 @@ export async function POST(req: Request) {
 
     const { messages }: { messages: UIMessage[] } = await req.json();
 
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-    const userText = lastUserMessage?.parts
-      ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join(" ") || "";
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    const userText =
+      lastUserMessage?.parts
+        ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+        .map((p) => p.text)
+        .join(" ") || "";
 
     // Build context from DB
     const context = await buildAgentContext();
@@ -48,13 +62,12 @@ export async function POST(req: Request) {
         ? getSonnetSystemPrompt(contextString)
         : getHaikuSystemPrompt(contextString);
 
-    // Convert UIMessages to ModelMessages — this can throw if messages are malformed
+    // Convert UIMessages to ModelMessages — fallback if messages are malformed
     let modelMessages;
     try {
       modelMessages = await convertToModelMessages(messages, { tools });
     } catch (conversionError) {
       console.error("[chat] Message conversion failed:", conversionError);
-      // Fall back to only the last user message to recover the conversation
       const fallbackMessages: UIMessage[] = messages
         .filter((m) => m.role === "user")
         .slice(-1);
@@ -64,6 +77,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const chatId = getChatId(user.id);
+
     const result = streamText({
       model: anthropic(modelId),
       system: systemPrompt,
@@ -72,7 +87,13 @@ export async function POST(req: Request) {
       stopWhen: stepCountIs(3),
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      generateMessageId,
+      onFinish: ({ messages: finalMessages }) => {
+        saveChat({ chatId, userId: user.id, messages: finalMessages });
+      },
+    });
   } catch (error) {
     console.error("[chat] Route error:", error);
     return new Response(

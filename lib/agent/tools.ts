@@ -67,11 +67,90 @@ const sharedTools = {
     }),
     execute: async (input) => ({ ...input, status: "pending_confirmation" }),
   }),
+
+  exercise_info: tool({
+    description:
+      "Show structured exercise information when the user asks about form, technique, or how to do an exercise. Always use this tool instead of plain text for exercise questions.",
+    inputSchema: z.object({
+      exercise_name: z.string().describe("Exercise name, properly capitalized"),
+      category: z.enum(["strength", "cardio", "flexibility"]).describe("Exercise category"),
+      primary_muscles: z.array(z.string()).describe("Primary muscles targeted"),
+      secondary_muscles: z.array(z.string()).optional().describe("Secondary muscles worked"),
+      form_cues: z.array(z.string()).describe("3-4 key form cues for proper execution"),
+      common_mistakes: z.array(z.string()).describe("2-3 common mistakes to avoid"),
+      recommended_sets: z.number().optional().describe("Recommended sets for a working set"),
+      recommended_reps: z.string().optional().describe("Recommended rep range, e.g. '8-12'"),
+    }),
+    execute: async (input) => ({ ...input, status: "displayed" }),
+  }),
 };
 
 export function createAgentTools(userId: string) {
   return {
     ...sharedTools,
+
+    show_progress: tool({
+      description:
+        "Show the user's progress history for a specific exercise. Use when user asks about their progress, personal best, or history for an exercise.",
+      inputSchema: z.object({
+        exercise_name: z.string().describe("Exercise name to look up"),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+
+          const { data: logs } = await supabase
+            .from("exercise_logs")
+            .select("exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, logged_at, workout_sessions!inner(date)")
+            .eq("user_id", userId)
+            .ilike("exercise_name", `%${input.exercise_name}%`)
+            .order("logged_at", { ascending: false })
+            .limit(10);
+
+          if (!logs || logs.length === 0) {
+            return {
+              status: "no_data",
+              exercise_name: input.exercise_name,
+              message: `No history found for ${input.exercise_name}`,
+            };
+          }
+
+          // Find personal best (highest weight)
+          const withWeight = logs.filter((l) => l.weight);
+          const personalBest = withWeight.length > 0
+            ? withWeight.reduce((best, l) => (l.weight! > best.weight! ? l : best))
+            : null;
+
+          // Build history entries
+          const history = logs.map((l) => ({
+            date: (l.workout_sessions as unknown as { date: string }).date,
+            sets: l.sets,
+            reps: l.reps,
+            weight: l.weight,
+            weight_unit: l.weight_unit,
+            duration_minutes: l.duration_minutes,
+            distance_km: l.distance_km,
+          }));
+
+          return {
+            status: "found",
+            exercise_name: logs[0].exercise_name,
+            total_sessions: logs.length,
+            history,
+            personal_best: personalBest
+              ? {
+                  weight: personalBest.weight,
+                  weight_unit: personalBest.weight_unit,
+                  reps: personalBest.reps,
+                  date: (personalBest.workout_sessions as unknown as { date: string }).date,
+                }
+              : null,
+          };
+        } catch {
+          return { status: "error", exercise_name: input.exercise_name, message: "Failed to load progress" };
+        }
+      },
+    }),
 
     backfill_workout: tool({
       description:
@@ -95,6 +174,17 @@ export function createAgentTools(userId: string) {
       }),
       execute: async (input) => {
         try {
+          // Validate: at least one exercise
+          if (!input.exercises || input.exercises.length === 0) {
+            return { status: "error", message: "No exercises provided" };
+          }
+
+          // Validate: date not in the future
+          const today = new Date().toISOString().split("T")[0];
+          if (input.date > today) {
+            return { status: "error", message: "Cannot backfill a future date" };
+          }
+
           const supabase = await createClient();
 
           // Check if session already exists for this date

@@ -54,6 +54,11 @@ const SONNET_PATTERNS = [
   // Goals & programming
   /goal/i,
   /progress/i,
+  /personal.*best/i,
+  /pb/i,
+  /pr/i,
+  /history.*for/i,
+  /how.*am.*i.*doing/i,
   /posture/i,
   /improve/i,
   /fix/i,
