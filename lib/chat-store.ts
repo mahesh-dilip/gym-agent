@@ -7,6 +7,7 @@ export function getChatId(userId: string, date?: Date): string {
   return `${userId}-${format(date ?? new Date(), "yyyy-MM-dd")}`;
 }
 
+
 /** Save (upsert) chat messages to Supabase. Called from onFinish in the route handler. */
 export async function saveChat({
   chatId,

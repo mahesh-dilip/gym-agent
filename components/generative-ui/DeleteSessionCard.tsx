@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
+import type { Goal, WorkoutSession } from "@/lib/supabase/types";
 
 type Props = {
   data: {
@@ -14,10 +15,10 @@ type Props = {
 };
 
 export function DeleteSessionCard({ data, isLoading }: Props) {
-  const { dispatch } = useSharedState();
+  const { state, dispatch } = useSharedState();
   const syncedRef = useRef(false);
 
-  // Reset client state when session is deleted
+  // Reset client state when today's session is deleted (preserve goals/history)
   useEffect(() => {
     if (!syncedRef.current && data?.status === "deleted") {
       syncedRef.current = true;
@@ -25,11 +26,15 @@ export function DeleteSessionCard({ data, isLoading }: Props) {
       if (!data.date || data.date === today) {
         dispatch({
           type: "LOAD_CONTEXT",
-          payload: { session: null, goals: [], history: [] },
+          payload: {
+            session: null,
+            goals: state.userGoals as Goal[],
+            history: state.recentHistory as WorkoutSession[],
+          },
         });
       }
     }
-  }, [data?.status, data?.date, dispatch]);
+  }, [data?.status, data?.date, dispatch, state.userGoals, state.recentHistory]);
 
   if (isLoading || !data) {
     return (

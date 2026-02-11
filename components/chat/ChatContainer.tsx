@@ -7,6 +7,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { QuickActions } from "./QuickActions";
 import { useSharedState } from "@/lib/state/shared-state";
+import { saveChatClient } from "@/lib/chat-store-client";
 
 type Props = {
   initialMessages: UIMessage[];
@@ -23,6 +24,30 @@ export function ChatContainer({ initialMessages }: Props) {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  // Eagerly save: on new user message, and when AI response completes
+  const prevStatusRef = useRef(status);
+  const lastSavedLengthRef = useRef(0);
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const last = messages[messages.length - 1];
+    const statusChanged = prevStatusRef.current !== status;
+    prevStatusRef.current = status;
+
+    // Save when: new user message appears
+    if (last.role === "user" && messages.length !== lastSavedLengthRef.current) {
+      lastSavedLengthRef.current = messages.length;
+      saveChatClient(messages);
+      return;
+    }
+
+    // Save when: AI response stream finishes (status transitions to "ready")
+    if (statusChanged && status === "ready") {
+      lastSavedLengthRef.current = messages.length;
+      saveChatClient(messages);
+    }
+  }, [messages, status]);
 
   useEffect(() => {
     const el = scrollRef.current;
