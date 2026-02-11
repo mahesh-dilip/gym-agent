@@ -12,6 +12,7 @@ import { ExerciseInfoCard } from "@/components/generative-ui/ExerciseInfoCard";
 import { ProgressCard } from "@/components/generative-ui/ProgressCard";
 import { DeleteExerciseCard } from "@/components/generative-ui/DeleteExerciseCard";
 import { EditExerciseCard } from "@/components/generative-ui/EditExerciseCard";
+import { DeleteSessionCard } from "@/components/generative-ui/DeleteSessionCard";
 
 function getToolComponent(toolName: string, input: unknown, isLoading: boolean) {
   const data = input as Record<string, unknown>;
@@ -36,6 +37,8 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
       return <DeleteExerciseCard data={data as never} isLoading={isLoading} />;
     case "edit_exercise":
       return <EditExerciseCard data={data as never} isLoading={isLoading} />;
+    case "delete_session":
+      return <DeleteSessionCard data={data as never} isLoading={isLoading} />;
     default:
       return null;
   }
@@ -110,6 +113,7 @@ export function ChatMessage({ message }: { message: UIMessage }) {
               "edit_exercise",
               "show_progress",
               "backfill_workout",
+              "delete_session",
             ]);
             const data = SERVER_TOOLS.has(toolName)
               ? output ?? input

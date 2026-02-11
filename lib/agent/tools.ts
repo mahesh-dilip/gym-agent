@@ -492,5 +492,75 @@ export function createAgentTools(userId: string) {
         }
       },
     }),
+
+    delete_session: tool({
+      description:
+        "Delete an entire workout session and all its logs (exercises, recovery). Use when the user wants to clear/delete today's session or a past session entirely.",
+      inputSchema: z.object({
+        date: z
+          .string()
+          .optional()
+          .describe(
+            "Date of the session to delete in YYYY-MM-DD format. Defaults to today if not specified."
+          ),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          const date = input.date || new Date().toISOString().split("T")[0];
+
+          const { data: session } = await supabase
+            .from("workout_sessions")
+            .select("id, date, status")
+            .eq("user_id", userId)
+            .eq("date", date)
+            .maybeSingle();
+
+          if (!session) {
+            return {
+              status: "not_found",
+              date,
+              message: `No session found for ${date}`,
+            };
+          }
+
+          // Delete exercise logs, recovery logs, then the session
+          await supabase
+            .from("exercise_logs")
+            .delete()
+            .eq("session_id", session.id);
+
+          await supabase
+            .from("recovery_logs")
+            .delete()
+            .eq("session_id", session.id);
+
+          const { error } = await supabase
+            .from("workout_sessions")
+            .delete()
+            .eq("id", session.id);
+
+          if (error) {
+            return {
+              status: "error",
+              date,
+              message: "Failed to delete session",
+            };
+          }
+
+          return {
+            status: "deleted",
+            date,
+            session_id: session.id,
+          };
+        } catch {
+          return {
+            status: "error",
+            date: input.date || "today",
+            message: "Failed to delete session",
+          };
+        }
+      },
+    }),
   };
 }
