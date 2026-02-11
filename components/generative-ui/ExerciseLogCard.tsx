@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type ExerciseData = {
   exercise_name: string;
@@ -13,6 +14,7 @@ type ExerciseData = {
   duration_minutes?: number;
   distance_km?: number;
   notes?: string;
+  set_details?: SetDetail[];
 };
 
 type Props = {
@@ -26,45 +28,32 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<ExerciseData>(data);
+  const [form, setForm] = useState<ExerciseData>(data ?? {} as ExerciseData);
+  const [setRows, setSetRows] = useState<SetDetail[]>([]);
+
+  // Sync form when data arrives after streaming
+  useEffect(() => {
+    if (data?.exercise_name) {
+      setForm(data);
+      if (data.set_details && data.set_details.length > 0) {
+        setSetRows(data.set_details);
+      }
+    }
+  }, [data]);
 
   // Hydrate: if this exercise is already in the DB, mark as saved
   useEffect(() => {
     if (
+      data?.exercise_name &&
       state.currentSession.completedExercises.some(
         (e) => e.exercise_name === data.exercise_name
       )
     ) {
       setSaved(true);
     }
-  }, [state.currentSession.completedExercises, data.exercise_name]);
+  }, [state.currentSession.completedExercises, data?.exercise_name]);
 
-  async function handleConfirm() {
-    setSaving(true);
-    setError(null);
-    const result = await persistExercise({
-      session_id: "",
-      exercise_name: form.exercise_name,
-      category: form.category,
-      sets: form.sets ?? null,
-      reps: form.reps ?? null,
-      weight: form.weight ?? null,
-      weight_unit: form.weight_unit || "kg",
-      duration_minutes: form.duration_minutes ?? null,
-      distance_km: form.distance_km ?? null,
-      notes: form.notes ?? null,
-      order_index: null,
-    });
-    setSaving(false);
-    if (result) {
-      setSaved(true);
-      setEditing(false);
-    } else {
-      setError("FAILED TO SAVE. RETRY?");
-    }
-  }
-
-  if (isLoading) {
+  if (isLoading || !data?.exercise_name) {
     return (
       <div className="tech-card p-4 animate-pulse">
         <div className="h-4 w-20 bg-surface-elevated rounded mb-4" />
@@ -77,7 +66,43 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
     );
   }
 
-  const categoryLabel = form.category.toUpperCase();
+  const hasSetDetails = setRows.length > 0;
+
+  async function handleConfirm() {
+    setSaving(true);
+    setError(null);
+    const result = await persistExercise({
+      session_id: "",
+      exercise_name: form.exercise_name,
+      category: form.category,
+      sets: hasSetDetails ? setRows.length : (form.sets ?? null),
+      reps: form.reps ?? null,
+      weight: form.weight ?? null,
+      weight_unit: form.weight_unit || "kg",
+      duration_minutes: form.duration_minutes ?? null,
+      distance_km: form.distance_km ?? null,
+      notes: form.notes ?? null,
+      order_index: null,
+      set_details: hasSetDetails ? setRows : null,
+    });
+    setSaving(false);
+    if (result) {
+      setSaved(true);
+      setEditing(false);
+    } else {
+      setError("FAILED TO SAVE. RETRY?");
+    }
+  }
+
+  function updateSetRow(index: number, field: "weight" | "reps", value: string) {
+    setSetRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: value ? Number(value) : null } : row
+      )
+    );
+  }
+
+  const categoryLabel = form.category?.toUpperCase() || "EXERCISE";
   const showDuration = form.category === "cardio" || form.category === "flexibility";
   const showDistance = form.category === "cardio";
   const showStrength = form.category === "strength";
@@ -105,68 +130,100 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
         {/* Edit Form */}
         {(editing || !saved) && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              {showStrength && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">SETS</label>
-                    <input
-                      type="number"
-                      value={form.sets ?? ""}
-                      onChange={(e) => setForm({ ...form, sets: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">REPS</label>
-                    <input
-                      type="number"
-                      value={form.reps ?? ""}
-                      onChange={(e) => setForm({ ...form, reps: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KG</label>
-                    <input
-                      type="number"
-                      value={form.weight ?? ""}
-                      onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
-                      placeholder="0"
-                    />
-                  </div>
-                </>
-              )}
-
-              {showDuration && (
-                <div className="space-y-1">
-                  <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">MINS</label>
-                  <input
-                    type="number"
-                    value={form.duration_minutes ?? ""}
-                    onChange={(e) => setForm({ ...form, duration_minutes: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
-                    placeholder="0"
-                  />
+            {/* Per-set editor when set_details exist */}
+            {hasSetDetails && showStrength ? (
+              <div className="space-y-2">
+                {/* Header row */}
+                <div className="grid grid-cols-[2rem_1fr_1fr] gap-2">
+                  <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">SET</span>
+                  <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">REPS</span>
+                  <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">{(form.weight_unit || "kg").toUpperCase()}</span>
                 </div>
-              )}
+                {setRows.map((row, i) => (
+                  <div key={i} className="grid grid-cols-[2rem_1fr_1fr] gap-2 items-center">
+                    <span className="text-xs font-mono text-text-tertiary text-center">{i + 1}</span>
+                    <input
+                      type="number"
+                      value={row.reps ?? ""}
+                      onChange={(e) => updateSetRow(i, "reps", e.target.value)}
+                      className="w-full bg-transparent border-b border-border text-center py-1.5 font-mono text-base focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                    <input
+                      type="number"
+                      value={row.weight ?? ""}
+                      onChange={(e) => updateSetRow(i, "weight", e.target.value)}
+                      className="w-full bg-transparent border-b border-border text-center py-1.5 font-mono text-base focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Standard scalar editor */
+              <div className="grid grid-cols-3 gap-3">
+                {showStrength && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">SETS</label>
+                      <input
+                        type="number"
+                        value={form.sets ?? ""}
+                        onChange={(e) => setForm({ ...form, sets: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">REPS</label>
+                      <input
+                        type="number"
+                        value={form.reps ?? ""}
+                        onChange={(e) => setForm({ ...form, reps: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KG</label>
+                      <input
+                        type="number"
+                        value={form.weight ?? ""}
+                        onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                        placeholder="0"
+                      />
+                    </div>
+                  </>
+                )}
 
-              {showDistance && (
-                <div className="space-y-1">
-                  <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KM</label>
-                  <input
-                    type="number"
-                    value={form.distance_km ?? ""}
-                    onChange={(e) => setForm({ ...form, distance_km: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
-                    placeholder="0"
-                  />
-                </div>
-              )}
-            </div>
+                {showDuration && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">MINS</label>
+                    <input
+                      type="number"
+                      value={form.duration_minutes ?? ""}
+                      onChange={(e) => setForm({ ...form, duration_minutes: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                )}
+
+                {showDistance && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KM</label>
+                    <input
+                      type="number"
+                      value={form.distance_km ?? ""}
+                      onChange={(e) => setForm({ ...form, distance_km: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
+                      placeholder="0"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 pt-2">
@@ -193,29 +250,46 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
         {/* Read Only View */}
         {!editing && saved && (
           <div className="flex items-center justify-between">
-            <div className="flex gap-4">
-              {form.sets && (
-                <div className="flex flex-col">
-                  <span className="text-2xl font-mono leading-none">{form.sets}</span>
-                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">SETS</span>
+            <div className="flex-1">
+              {/* Per-set read-only display */}
+              {hasSetDetails ? (
+                <div className="space-y-1">
+                  {setRows.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <span className="text-[10px] font-mono text-text-tertiary w-5">S{i + 1}</span>
+                      <span className="font-mono text-text-primary">
+                        {row.weight ?? "?"}{(form.weight_unit || "kg")} x {row.reps ?? "?"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {form.reps && (
-                <div className="flex flex-col">
-                  <span className="text-2xl font-mono leading-none">{form.reps}</span>
-                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">REPS</span>
-                </div>
-              )}
-              {form.weight && (
-                <div className="flex flex-col">
-                  <span className="text-2xl font-mono leading-none">{form.weight}</span>
-                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">KG</span>
-                </div>
-              )}
-              {form.duration_minutes && (
-                <div className="flex flex-col">
-                  <span className="text-2xl font-mono leading-none">{form.duration_minutes}</span>
-                  <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">MIN</span>
+              ) : (
+                /* Scalar read-only display */
+                <div className="flex gap-4">
+                  {form.sets && (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-mono leading-none">{form.sets}</span>
+                      <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">SETS</span>
+                    </div>
+                  )}
+                  {form.reps && (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-mono leading-none">{form.reps}</span>
+                      <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">REPS</span>
+                    </div>
+                  )}
+                  {form.weight && (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-mono leading-none">{form.weight}</span>
+                      <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">KG</span>
+                    </div>
+                  )}
+                  {form.duration_minutes && (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-mono leading-none">{form.duration_minutes}</span>
+                      <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">MIN</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

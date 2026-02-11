@@ -1,6 +1,8 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type HistoryEntry = {
   date: string;
@@ -10,6 +12,7 @@ type HistoryEntry = {
   weight_unit?: string | null;
   duration_minutes?: number | null;
   distance_km?: number | null;
+  set_details?: SetDetail[] | null;
 };
 
 type PersonalBest = {
@@ -42,6 +45,9 @@ function formatDate(dateStr: string): string {
 }
 
 function formatEntry(e: HistoryEntry): string {
+  if (e.set_details && e.set_details.length > 0) {
+    return formatSetDetails(e.set_details, e.weight_unit || "kg");
+  }
   const parts: string[] = [];
   if (e.sets) parts.push(`${e.sets}s`);
   if (e.reps) parts.push(`${e.reps}r`);

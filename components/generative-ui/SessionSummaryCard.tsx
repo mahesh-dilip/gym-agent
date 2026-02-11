@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
 import { differenceInMinutes } from "date-fns";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type Props = {
   data: { notes?: string };
@@ -82,15 +84,17 @@ export function SessionSummaryCard({ data, isLoading }: Props) {
               <div key={e.id} className="flex items-center justify-between text-sm">
                 <span className="text-text-primary">{e.exercise_name}</span>
                 <span className="text-text-secondary">
-                  {[
-                    e.sets && `${e.sets}s`,
-                    e.reps && `${e.reps}r`,
-                    e.weight && `${e.weight}${e.weight_unit}`,
-                    e.duration_minutes && `${e.duration_minutes}min`,
-                    e.distance_km && `${e.distance_km}km`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {e.set_details && (e.set_details as SetDetail[]).length > 0
+                    ? formatSetDetails(e.set_details as SetDetail[], e.weight_unit)
+                    : [
+                        e.sets && `${e.sets}s`,
+                        e.reps && `${e.reps}r`,
+                        e.weight && `${e.weight}${e.weight_unit}`,
+                        e.duration_minutes && `${e.duration_minutes}min`,
+                        e.distance_km && `${e.distance_km}km`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                 </span>
               </div>
             ))}

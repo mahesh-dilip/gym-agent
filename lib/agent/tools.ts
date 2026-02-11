@@ -16,6 +16,18 @@ const sharedTools = {
       duration_minutes: z.number().optional().describe("Duration in minutes for cardio/flexibility"),
       distance_km: z.number().optional().describe("Distance in km for cardio"),
       notes: z.string().optional().describe("Any additional notes"),
+      set_details: z
+        .array(
+          z.object({
+            set_number: z.number().describe("Set number (1-based)"),
+            weight: z.number().nullable().describe("Weight for this set"),
+            reps: z.number().nullable().describe("Reps for this set"),
+          })
+        )
+        .optional()
+        .describe(
+          "Per-set breakdown when sets vary in weight/reps. Only use when sets differ — if all sets are identical, use the scalar sets/reps/weight fields instead."
+        ),
     }),
     execute: async (input) => ({ ...input, status: "pending_confirmation" }),
   }),
@@ -125,7 +137,7 @@ export function createAgentTools(userId: string) {
 
           const { data: exercises } = await supabase
             .from("exercise_logs")
-            .select("id, exercise_name, sets, reps, weight, weight_unit, duration_minutes")
+            .select("id, exercise_name, sets, reps, weight, weight_unit, duration_minutes, set_details")
             .eq("session_id", session.id)
             .ilike("exercise_name", `%${input.exercise_name}%`)
             .order("logged_at", { ascending: false });
@@ -196,6 +208,16 @@ export function createAgentTools(userId: string) {
           .optional()
           .describe("New distance in km"),
         notes: z.string().optional().describe("New notes"),
+        set_details: z
+          .array(
+            z.object({
+              set_number: z.number().describe("Set number (1-based)"),
+              weight: z.number().nullable().describe("Weight for this set"),
+              reps: z.number().nullable().describe("Reps for this set"),
+            })
+          )
+          .optional()
+          .describe("Updated per-set breakdown"),
       }),
       execute: async (input) => {
         try {
@@ -245,6 +267,8 @@ export function createAgentTools(userId: string) {
           if (input.distance_km !== undefined)
             updates.distance_km = input.distance_km;
           if (input.notes !== undefined) updates.notes = input.notes;
+          if (input.set_details !== undefined)
+            updates.set_details = input.set_details;
 
           if (Object.keys(updates).length === 0) {
             return {
@@ -296,7 +320,7 @@ export function createAgentTools(userId: string) {
 
           const { data: logs } = await supabase
             .from("exercise_logs")
-            .select("exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, logged_at, workout_sessions!inner(date)")
+            .select("exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, set_details, logged_at, workout_sessions!inner(date)")
             .eq("user_id", userId)
             .ilike("exercise_name", `%${input.exercise_name}%`)
             .order("logged_at", { ascending: false })
@@ -325,6 +349,7 @@ export function createAgentTools(userId: string) {
             weight_unit: l.weight_unit,
             duration_minutes: l.duration_minutes,
             distance_km: l.distance_km,
+            set_details: l.set_details,
           }));
 
           return {
@@ -363,6 +388,16 @@ export function createAgentTools(userId: string) {
             duration_minutes: z.number().optional().describe("Duration in minutes"),
             distance_km: z.number().optional().describe("Distance in km"),
             notes: z.string().optional().describe("Notes about this exercise"),
+            set_details: z
+              .array(
+                z.object({
+                  set_number: z.number().describe("Set number (1-based)"),
+                  weight: z.number().nullable().describe("Weight for this set"),
+                  reps: z.number().nullable().describe("Reps for this set"),
+                })
+              )
+              .optional()
+              .describe("Per-set breakdown when sets vary in weight/reps"),
           })
         ).describe("List of exercises performed"),
         notes: z.string().optional().describe("Session-level notes"),
@@ -434,6 +469,7 @@ export function createAgentTools(userId: string) {
             distance_km: e.distance_km ?? null,
             notes: e.notes || null,
             order_index: i,
+            set_details: e.set_details ?? null,
           }));
 
           const { error: logError } = await supabase

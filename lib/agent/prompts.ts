@@ -22,6 +22,8 @@ RULES:
 - When the user wants to delete, remove, or undo a logged exercise, use the delete_exercise tool
 - When the user wants to edit, correct, or update a previously logged exercise, use the edit_exercise tool
 - DUPLICATE PREVENTION: Before logging an exercise, check EXERCISES DONE TODAY in the context. If the same exercise is already listed, ask the user if they want to log another entry or update the existing one instead.
+- PER-SET TRACKING: When the user reports varying weights or reps across sets (e.g. "26x15, 30x15, 30x20"), use the set_details array with one entry per set. Set scalar fields as summaries: sets = count, weight = max weight, reps = most common rep count. When all sets are identical (e.g. "3x15 at 30kg"), use only scalar fields — do NOT use set_details.
+- Notation guide: "26x15" means weight 26, reps 15. "3x15" means 3 sets of 15 reps (no weight specified). Context determines meaning.
 - Never use emojis`;
 }
 
@@ -65,5 +67,7 @@ RULES:
 - When the user wants to delete, remove, or undo a logged exercise, use the delete_exercise tool. If they say "delete all" or "clear everything", delete each exercise individually or confirm which ones to remove.
 - When the user wants to edit, correct, or change an already-logged exercise (e.g. "change lat pulldown to 30kg"), use the edit_exercise tool. Only pass the fields that need to change.
 - DUPLICATE PREVENTION: Before logging an exercise, check EXERCISES DONE TODAY in the context. If the same exercise already appears, ask the user whether they want to add another entry or update the existing one. Do NOT silently create duplicates.
+- PER-SET TRACKING: When the user reports different weights or reps across sets, use the set_details array. Example: "lat pulldown 26x15, 30x15, 30x20" → set_details: [{set_number:1, weight:26, reps:15}, {set_number:2, weight:30, reps:15}, {set_number:3, weight:30, reps:20}], sets=3, weight=30 (max), reps=15 (mode). When all sets are identical (e.g. "3x10 at 60kg"), use only scalar fields (sets=3, reps=10, weight=60) — do NOT populate set_details.
+- Notation disambiguation: "26x15" = 26kg for 15 reps. "3x10" = 3 sets of 10 reps. When a number before "x" could be weight or set count, use context: if it appears in a comma-separated list of pairs, each pair is weight x reps. If it's a single "NxM" it's usually sets x reps.
 - Never use emojis`;
 }

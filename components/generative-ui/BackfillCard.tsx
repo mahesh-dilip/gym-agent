@@ -1,6 +1,8 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type Exercise = {
   exercise_name: string;
@@ -12,6 +14,7 @@ type Exercise = {
   duration_minutes?: number;
   distance_km?: number;
   notes?: string;
+  set_details?: SetDetail[];
 };
 
 type BackfillData = {
@@ -29,6 +32,9 @@ type Props = {
 };
 
 function formatExerciseDetail(e: Exercise): string {
+  if (e.set_details && e.set_details.length > 0) {
+    return formatSetDetails(e.set_details, e.weight_unit || "kg");
+  }
   const parts: string[] = [];
   if (e.sets) parts.push(`${e.sets}s`);
   if (e.reps) parts.push(`${e.reps}r`);

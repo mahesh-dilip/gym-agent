@@ -12,6 +12,13 @@ export type WorkoutSession = {
   recovery_logs?: RecoveryLog[];
 };
 
+export type SetDetail = {
+  set_number: number;
+  weight: number | null;
+  reps: number | null;
+  weight_unit?: string;
+};
+
 export type ExerciseLog = {
   id: string;
   user_id: string;
@@ -26,6 +33,7 @@ export type ExerciseLog = {
   distance_km: number | null;
   notes: string | null;
   order_index: number | null;
+  set_details: SetDetail[] | null;
   logged_at: string;
 };
 

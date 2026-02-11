@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { format, subDays } from "date-fns";
-import type { WorkoutSession, Goal, ExerciseLog, RecoveryLog } from "@/lib/supabase/types";
+import type { WorkoutSession, Goal, ExerciseLog, RecoveryLog, SetDetail } from "@/lib/supabase/types";
+import { formatSetDetails } from "@/lib/format-sets";
 
 export type AgentContext = {
   todayDate: string;
@@ -82,6 +83,9 @@ export function formatContextForPrompt(ctx: AgentContext): string {
   const exercisesSummary = ctx.todayExercises.length > 0
     ? ctx.todayExercises
         .map((e) => {
+          if (e.set_details && e.set_details.length > 0) {
+            return `  - ${e.exercise_name}: ${formatSetDetails(e.set_details as SetDetail[], e.weight_unit)}`;
+          }
           const parts = [e.exercise_name];
           if (e.sets) parts.push(`${e.sets} sets`);
           if (e.reps) parts.push(`${e.reps} reps`);

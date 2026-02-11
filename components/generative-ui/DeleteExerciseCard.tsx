@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type DeletedExercise = {
   id: string;
@@ -11,6 +13,7 @@ type DeletedExercise = {
   weight?: number | null;
   weight_unit?: string;
   duration_minutes?: number | null;
+  set_details?: SetDetail[] | null;
 };
 
 type Props = {
@@ -118,14 +121,16 @@ export function DeleteExerciseCard({ data, isLoading }: Props) {
             {ex.exercise_name}
           </span>
           <span className="ml-auto text-[11px] text-text-tertiary">
-            {[
-              ex.sets && `${ex.sets}s`,
-              ex.reps && `${ex.reps}r`,
-              ex.weight && `${ex.weight}${ex.weight_unit || "kg"}`,
-              ex.duration_minutes && `${ex.duration_minutes}m`,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+            {ex.set_details && ex.set_details.length > 0
+              ? formatSetDetails(ex.set_details, ex.weight_unit || "kg")
+              : [
+                  ex.sets && `${ex.sets}s`,
+                  ex.reps && `${ex.reps}r`,
+                  ex.weight && `${ex.weight}${ex.weight_unit || "kg"}`,
+                  ex.duration_minutes && `${ex.duration_minutes}m`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </span>
         </div>
       ))}

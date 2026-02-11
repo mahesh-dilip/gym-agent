@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
-import type { ExerciseLog } from "@/lib/supabase/types";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { ExerciseLog, SetDetail } from "@/lib/supabase/types";
 
 type Props = {
   data: {
@@ -104,20 +105,26 @@ export function EditExerciseCard({ data, isLoading }: Props) {
         {ex.exercise_name}
       </h3>
 
-      <div className="mt-1 flex flex-wrap gap-2 text-[13px] text-text-secondary">
-        {ex.sets && <span>{ex.sets} sets</span>}
-        {ex.sets && (ex.reps || ex.weight) && <span>·</span>}
-        {ex.reps && <span>{ex.reps} reps</span>}
-        {ex.reps && ex.weight && <span>·</span>}
-        {ex.weight && (
-          <span>
-            {ex.weight} {ex.weight_unit || "kg"}
-          </span>
-        )}
-        {ex.duration_minutes && <span>{ex.duration_minutes} min</span>}
-        {ex.duration_minutes && ex.distance_km && <span>·</span>}
-        {ex.distance_km && <span>{ex.distance_km} km</span>}
-      </div>
+      {ex.set_details && (ex.set_details as SetDetail[]).length > 0 ? (
+        <p className="mt-1 text-[13px] text-text-secondary">
+          {formatSetDetails(ex.set_details as SetDetail[], ex.weight_unit || "kg")}
+        </p>
+      ) : (
+        <div className="mt-1 flex flex-wrap gap-2 text-[13px] text-text-secondary">
+          {ex.sets && <span>{ex.sets} sets</span>}
+          {ex.sets && (ex.reps || ex.weight) && <span>·</span>}
+          {ex.reps && <span>{ex.reps} reps</span>}
+          {ex.reps && ex.weight && <span>·</span>}
+          {ex.weight && (
+            <span>
+              {ex.weight} {ex.weight_unit || "kg"}
+            </span>
+          )}
+          {ex.duration_minutes && <span>{ex.duration_minutes} min</span>}
+          {ex.duration_minutes && ex.distance_km && <span>·</span>}
+          {ex.distance_km && <span>{ex.distance_km} km</span>}
+        </div>
+      )}
 
       {ex.notes && (
         <p className="mt-1 text-[12px] text-text-tertiary">{ex.notes}</p>

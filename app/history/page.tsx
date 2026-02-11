@@ -18,7 +18,9 @@ import type {
   WorkoutSession,
   ExerciseLog,
   RecoveryLog,
+  SetDetail,
 } from "@/lib/supabase/types";
+import { formatSetDetails, getSetDetailsVolume } from "@/lib/format-sets";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,9 @@ function groupByWeek(sessions: WorkoutSession[]): { label: string; sessions: Wor
 
 function getSessionVolume(exercises: ExerciseLog[]): number {
   return exercises.reduce((sum, e) => {
+    if (e.set_details && (e.set_details as SetDetail[]).length > 0) {
+      return sum + getSetDetailsVolume(e.set_details as SetDetail[]);
+    }
     if (e.sets && e.reps && e.weight) return sum + e.sets * e.reps * e.weight;
     return sum;
   }, 0);
@@ -322,14 +327,16 @@ function SessionCard({
                             {e.exercise_name}
                           </span>
                           <span className="text-[10px] font-mono text-text-tertiary">
-                            {[
-                              e.sets && `${e.sets}S`,
-                              e.reps && `${e.reps}R`,
-                              e.weight && `${e.weight}KG`,
-                              e.duration_minutes && `${e.duration_minutes}M`,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
+                            {e.set_details && (e.set_details as SetDetail[]).length > 0
+                              ? formatSetDetails(e.set_details as SetDetail[], e.weight_unit)
+                              : [
+                                  e.sets && `${e.sets}S`,
+                                  e.reps && `${e.reps}R`,
+                                  e.weight && `${e.weight}KG`,
+                                  e.duration_minutes && `${e.duration_minutes}M`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                           </span>
                         </div>
                       ))}

@@ -98,14 +98,24 @@ export function ChatMessage({ message }: { message: UIMessage }) {
             const dynamicPart = part as any;
             const toolName = dynamicPart.toolName || part.type.replace("tool-", "");
             const isToolLoading = "state" in part && part.state === "input-streaming";
-            const output = "output" in part ? part.output : undefined;
-            const input = "input" in part ? part.input : undefined;
+            const output =
+              "output" in part ? (part as Record<string, unknown>).output : undefined;
+            const input =
+              "input" in part ? (part as Record<string, unknown>).input : undefined;
 
-            const component = getToolComponent(
-              toolName,
-              output ?? input,
-              isToolLoading
-            );
+            // Server-executed tools need the output (execute result).
+            // Client-confirmation tools need the input (AI's call args).
+            const SERVER_TOOLS = new Set([
+              "delete_exercise",
+              "edit_exercise",
+              "show_progress",
+              "backfill_workout",
+            ]);
+            const data = SERVER_TOOLS.has(toolName)
+              ? output ?? input
+              : input;
+
+            const component = getToolComponent(toolName, data, isToolLoading);
 
             if (component) {
               return (
