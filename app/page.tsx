@@ -1,6 +1,6 @@
 import { SharedStateProvider } from "@/lib/state/shared-state";
 import { SessionHeader } from "@/components/session/SessionHeader";
-import { ChatContainer } from "@/components/chat/ChatContainer";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { loadChat, getChatId } from "@/lib/chat-store";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,7 +25,7 @@ export default async function Home() {
       <div className="flex h-dvh flex-col bg-background">
         <SessionHeader />
         <div className="flex-1 overflow-hidden">
-          <ChatContainer initialMessages={initialMessages} />
+          <MainLayout initialMessages={initialMessages} />
         </div>
       </div>
     </SharedStateProvider>

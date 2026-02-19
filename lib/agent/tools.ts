@@ -45,22 +45,6 @@ const sharedTools = {
     execute: async (input) => ({ ...input, status: "pending_confirmation" }),
   }),
 
-  suggest_workout: tool({
-    description: "Suggest a workout plan for today. Use when the user asks what to do.",
-    inputSchema: z.object({
-      focus: z.string().describe("Primary focus area, e.g. 'Lower Body & Chest'"),
-      exercises: z.array(
-        z.object({
-          name: z.string().describe("Exercise name"),
-          target_sets: z.number().describe("Recommended number of sets"),
-          notes: z.string().optional().describe("Any tips or notes"),
-        })
-      ).describe("List of exercises in the plan"),
-      rationale: z.string().describe("Brief explanation of why this plan makes sense"),
-    }),
-    execute: async (input) => ({ ...input, status: "plan_shown" }),
-  }),
-
   end_session: tool({
     description: "End the current workout session and show a summary",
     inputSchema: z.object({
@@ -100,6 +84,87 @@ const sharedTools = {
 export function createAgentTools(userId: string) {
   return {
     ...sharedTools,
+
+    suggest_workout: tool({
+      description: "Suggest a workout plan for today. Use when the user asks what to do.",
+      inputSchema: z.object({
+        focus: z.string().describe("Primary focus area, e.g. 'Lower Body & Chest'"),
+        exercises: z.array(
+          z.object({
+            name: z.string().describe("Exercise name"),
+            target_sets: z.number().describe("Recommended number of sets"),
+            notes: z.string().optional().describe("Any tips or notes"),
+          })
+        ).describe("List of exercises in the plan"),
+        rationale: z.string().describe("Brief explanation of why this plan makes sense"),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          const enriched = await Promise.all(
+            input.exercises.map(async (ex) => {
+              const { data: lastLog } = await supabase
+                .from("exercise_logs")
+                .select("sets, reps, weight, weight_unit, set_details")
+                .eq("user_id", userId)
+                .ilike("exercise_name", ex.name)
+                .order("logged_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              return {
+                ...ex,
+                last_weight: lastLog?.weight ?? null,
+                last_reps: lastLog?.reps ?? null,
+                last_sets: lastLog?.sets ?? null,
+                last_set_details: lastLog?.set_details ?? null,
+                last_weight_unit: lastLog?.weight_unit ?? null,
+              };
+            })
+          );
+          return { ...input, exercises: enriched, status: "plan_shown" };
+        } catch {
+          return { ...input, status: "plan_shown" };
+        }
+      },
+    }),
+
+    set_preference: tool({
+      description:
+        "Save a user preference like default reps or weight unit. Use when the user says 'set my default reps to X' or similar.",
+      inputSchema: z.object({
+        key: z.enum(["default_reps", "weight_unit"]).describe("Preference key"),
+        value: z.union([z.string(), z.number()]).describe("Preference value"),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          // Get current preferences
+          const { data: profile } = await supabase
+            .from("user_profile")
+            .select("preferences")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          const current = (profile?.preferences as Record<string, unknown>) || {};
+          const updated = { ...current, [input.key]: input.value };
+
+          const { error } = await supabase
+            .from("user_profile")
+            .upsert(
+              { user_id: userId, preferences: updated, updated_at: new Date().toISOString() },
+              { onConflict: "user_id" }
+            );
+
+          if (error) {
+            return { status: "error", message: "Failed to save preference" };
+          }
+          return { status: "saved", key: input.key, value: input.value };
+        } catch {
+          return { status: "error", message: "Failed to save preference" };
+        }
+      },
+    }),
 
     delete_exercise: tool({
       description:

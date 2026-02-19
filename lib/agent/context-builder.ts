@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { format, subDays } from "date-fns";
-import type { WorkoutSession, Goal, ExerciseLog, RecoveryLog, SetDetail } from "@/lib/supabase/types";
+import type { WorkoutSession, Goal, ExerciseLog, RecoveryLog, SetDetail, UserPreferences } from "@/lib/supabase/types";
 import { formatSetDetails } from "@/lib/format-sets";
 
 export type AgentContext = {
@@ -12,6 +12,7 @@ export type AgentContext = {
   recentHistory: WorkoutSession[];
   goals: Goal[];
   plannedExercises: unknown[] | null;
+  preferences: UserPreferences;
 };
 
 async function getSupabase() {
@@ -51,7 +52,11 @@ export async function buildAgentContext(): Promise<AgentContext> {
     .eq("status", "in_progress")
     .lt("date", todayStr);
 
-  const [goalsResult, historyResult, sessionResult] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [goalsResult, historyResult, sessionResult, profileResult] = await Promise.all([
     supabase.from("goals").select("*").eq("status", "active"),
     supabase
       .from("workout_sessions")
@@ -64,9 +69,13 @@ export async function buildAgentContext(): Promise<AgentContext> {
       .select("*, exercise_logs(*), recovery_logs(*)")
       .eq("date", todayStr)
       .maybeSingle(),
+    user
+      ? supabase.from("user_profile").select("preferences").eq("user_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const todaySession = sessionResult.data as WorkoutSession | null;
+  const preferences = (profileResult.data?.preferences as UserPreferences) || {};
 
   return {
     todayDate: todayStr,
@@ -76,6 +85,7 @@ export async function buildAgentContext(): Promise<AgentContext> {
     recentHistory: (historyResult.data as WorkoutSession[]) || [],
     goals: (goalsResult.data as Goal[]) || [],
     plannedExercises: todaySession?.planned_exercises || null,
+    preferences,
   };
 }
 
@@ -124,8 +134,16 @@ export function formatContextForPrompt(ctx: AgentContext): string {
         .join("\n")
     : "  No plan set";
 
+  const prefParts: string[] = [];
+  if (ctx.preferences.default_reps) prefParts.push(`  Default reps: ${ctx.preferences.default_reps}`);
+  if (ctx.preferences.weight_unit) prefParts.push(`  Weight unit: ${ctx.preferences.weight_unit}`);
+  const prefSummary = prefParts.length > 0 ? prefParts.join("\n") : "  None set";
+
   return `TODAY: ${ctx.todayDate}
 SESSION STATUS: ${ctx.sessionStatus}
+
+USER PREFERENCES:
+${prefSummary}
 
 PLANNED WORKOUT:
 ${planSummary}

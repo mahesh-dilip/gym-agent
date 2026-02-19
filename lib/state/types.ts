@@ -4,6 +4,7 @@ import type {
   RecoveryLog,
   Goal,
   PlannedExercise,
+  UserPreferences,
 } from "@/lib/supabase/types";
 
 export type SessionStatus = "not_started" | "in_progress" | "completed";
@@ -21,6 +22,7 @@ export type SharedState = {
   currentSession: CurrentSession;
   userGoals: Goal[];
   recentHistory: WorkoutSession[];
+  preferences: UserPreferences;
   isLoading: boolean;
 };
 
@@ -31,7 +33,7 @@ export type Action =
   | { type: "END_SESSION"; payload: { completedAt: string; notes?: string } }
   | { type: "SET_PLAN"; payload: PlannedExercise[] }
   | { type: "SET_GOAL"; payload: Goal }
-  | { type: "LOAD_CONTEXT"; payload: { session: WorkoutSession | null; goals: Goal[]; history: WorkoutSession[] } }
+  | { type: "LOAD_CONTEXT"; payload: { session: WorkoutSession | null; goals: Goal[]; history: WorkoutSession[]; preferences?: UserPreferences } }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "UPDATE_EXERCISE"; payload: ExerciseLog }
   | { type: "REMOVE_EXERCISES"; payload: string[] }
@@ -48,5 +50,6 @@ export const initialState: SharedState = {
   },
   userGoals: [],
   recentHistory: [],
+  preferences: {},
   isLoading: true,
 };

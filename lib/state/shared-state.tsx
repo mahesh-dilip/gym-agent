@@ -13,17 +13,18 @@ import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import type { SharedState, Action } from "./types";
 import { initialState } from "./types";
-import type { WorkoutSession, ExerciseLog, RecoveryLog, Goal } from "@/lib/supabase/types";
+import type { WorkoutSession, ExerciseLog, RecoveryLog, Goal, UserPreferences } from "@/lib/supabase/types";
 
 function sharedStateReducer(state: SharedState, action: Action): SharedState {
   switch (action.type) {
     case "LOAD_CONTEXT": {
-      const { session, goals, history } = action.payload;
+      const { session, goals, history, preferences } = action.payload;
       return {
         ...state,
         isLoading: false,
         userGoals: goals,
         recentHistory: history,
+        preferences: preferences || {},
         currentSession: session
           ? {
               id: session.id,
@@ -170,7 +171,7 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
         "yyyy-MM-dd"
       );
 
-      const [goalsResult, historyResult, sessionResult] = await Promise.all([
+      const [goalsResult, historyResult, sessionResult, profileResult] = await Promise.all([
         supabase.from("goals").select("*").eq("status", "active"),
         supabase
           .from("workout_sessions")
@@ -182,6 +183,11 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
           .select("*, exercise_logs(*), recovery_logs(*)")
           .eq("date", today)
           .maybeSingle(),
+        supabase
+          .from("user_profile")
+          .select("preferences")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
 
       dispatch({
@@ -190,6 +196,7 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
           session: sessionResult.data as WorkoutSession | null,
           goals: (goalsResult.data as Goal[]) || [],
           history: (historyResult.data as WorkoutSession[]) || [],
+          preferences: (profileResult.data?.preferences as UserPreferences) || {},
         },
       });
     }

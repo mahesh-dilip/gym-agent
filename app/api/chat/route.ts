@@ -7,11 +7,14 @@ import {
 } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { buildAgentContext, formatContextForPrompt } from "@/lib/agent/context-builder";
+import { buildCoachContext, formatCoachContext } from "@/lib/agent/coach-context-builder";
 import { routeIntent } from "@/lib/agent/router";
 import { getHaikuSystemPrompt, getSonnetSystemPrompt } from "@/lib/agent/prompts";
+import { getCoachSystemPrompt } from "@/lib/agent/coach-prompts";
 import { createAgentTools } from "@/lib/agent/tools";
+import { createCoachTools } from "@/lib/agent/coach-tools";
 import { createClient } from "@/lib/supabase/server";
-import { saveChat, getChatId } from "@/lib/chat-store";
+import { saveChat, getChatId, getCoachChatId } from "@/lib/chat-store";
 
 export const maxDuration = 30;
 
@@ -34,6 +37,11 @@ export async function POST(req: Request) {
 
     const { messages }: { messages: UIMessage[] } = await req.json();
 
+    // Check for coach mode
+    const url = new URL(req.url);
+    const mode = url.searchParams.get("mode");
+    const isCoach = mode === "coach";
+
     const lastUserMessage = [...messages]
       .reverse()
       .find((m) => m.role === "user");
@@ -43,24 +51,35 @@ export async function POST(req: Request) {
         .map((p) => p.text)
         .join(" ") || "";
 
-    // Build context from DB
-    const context = await buildAgentContext();
-    const contextString = formatContextForPrompt(context);
+    let systemPrompt: string;
+    let tools;
+    let modelId: string;
+    let chatId: string;
 
-    // Create tools with user context
-    const tools = createAgentTools(user.id);
-
-    // Route to appropriate model
-    const route = routeIntent(userText);
-    const modelId =
-      route === "sonnet"
-        ? "claude-sonnet-4-5-20250929"
-        : "claude-haiku-4-5-20251001";
-
-    const systemPrompt =
-      route === "sonnet"
-        ? getSonnetSystemPrompt(contextString)
-        : getHaikuSystemPrompt(contextString);
+    if (isCoach) {
+      // Coach mode: always Sonnet, coach context, coach tools
+      const coachContext = await buildCoachContext(user.id);
+      const contextString = formatCoachContext(coachContext);
+      systemPrompt = getCoachSystemPrompt(contextString);
+      tools = createCoachTools(user.id);
+      modelId = "claude-sonnet-4-5-20250929";
+      chatId = getCoachChatId(user.id);
+    } else {
+      // Session mode: route to haiku/sonnet
+      const context = await buildAgentContext();
+      const contextString = formatContextForPrompt(context);
+      tools = createAgentTools(user.id);
+      const route = routeIntent(userText);
+      modelId =
+        route === "sonnet"
+          ? "claude-sonnet-4-5-20250929"
+          : "claude-haiku-4-5-20251001";
+      systemPrompt =
+        route === "sonnet"
+          ? getSonnetSystemPrompt(contextString)
+          : getHaikuSystemPrompt(contextString);
+      chatId = getChatId(user.id);
+    }
 
     // Convert UIMessages to ModelMessages — fallback if messages are malformed
     let modelMessages;
@@ -76,8 +95,6 @@ export async function POST(req: Request) {
         { tools }
       );
     }
-
-    const chatId = getChatId(user.id);
 
     const result = streamText({
       model: anthropic(modelId),

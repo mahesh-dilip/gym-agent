@@ -90,6 +90,13 @@ const SONNET_PATTERNS = [
   /get.*rid/i,
   /clear/i,
 
+  // Preferences
+  /set.*default/i,
+  /default.*reps/i,
+
+  // Repeat session
+  /repeat/i,
+
   // Recovery & injury
   /sore/i,
   /pain/i,

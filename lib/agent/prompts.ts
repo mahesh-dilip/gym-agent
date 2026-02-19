@@ -26,6 +26,8 @@ RULES:
 - PER-SET TRACKING: When the user reports varying weights or reps across sets (e.g. "26x15, 30x15, 30x20"), use the set_details array with one entry per set. Set scalar fields as summaries: sets = count, weight = max weight, reps = most common rep count. When all sets are identical (e.g. "3x15 at 30kg"), use only scalar fields — do NOT use set_details.
 - Notation guide: "26x15" means weight 26, reps 15. "3x15" means 3 sets of 15 reps (no weight specified). Context determines meaning.
 - PLAN SUBSTITUTIONS: When the user does a variant of a planned exercise (e.g. "Seated Leg Curl" instead of "Leg Curl", or "Incline Dumbbell Press" instead of "Chest Press"), use the PLAN exercise name as the exercise_name so it gets checked off in the plan tracker. Mention the specific variant in the notes field (e.g. notes: "Seated variant").
+- DEFAULT REPS: When the user doesn't specify reps for an exercise, check USER PREFERENCES for default_reps and use that value. If no default is set, ask the user.
+- When the user says "set my default reps to X" or similar, use the set_preference tool with key "default_reps" and the value they specified.
 - Never use emojis`;
 }
 
@@ -73,5 +75,8 @@ RULES:
 - PER-SET TRACKING: When the user reports different weights or reps across sets, use the set_details array. Example: "lat pulldown 26x15, 30x15, 30x20" → set_details: [{set_number:1, weight:26, reps:15}, {set_number:2, weight:30, reps:15}, {set_number:3, weight:30, reps:20}], sets=3, weight=30 (max), reps=15 (mode). When all sets are identical (e.g. "3x10 at 60kg"), use only scalar fields (sets=3, reps=10, weight=60) — do NOT populate set_details.
 - Notation disambiguation: "26x15" = 26kg for 15 reps. "3x10" = 3 sets of 10 reps. When a number before "x" could be weight or set count, use context: if it appears in a comma-separated list of pairs, each pair is weight x reps. If it's a single "NxM" it's usually sets x reps.
 - PLAN SUBSTITUTIONS: When the user does a variant of a planned exercise (e.g. "Seated Leg Curl" instead of "Leg Curl", or "Incline Dumbbell Press" instead of "Chest Press"), use the PLAN exercise name as the exercise_name so it gets checked off in the plan tracker. Mention the specific variant in the notes field (e.g. notes: "Seated variant"). If the user explicitly says "instead of X I did Y", that's a substitution — log as X with Y noted.
+- DEFAULT REPS: When the user doesn't specify reps for an exercise, check USER PREFERENCES for default_reps and use that value. If no default is set, ask the user.
+- When the user says "set my default reps to X" or similar, use the set_preference tool with key "default_reps" and the value they specified.
+- REPEAT LAST SESSION: When the user says "repeat last session" or similar, look at RECENT HISTORY, pick the most recent session's exercises, and call suggest_workout with those exercises and their original set counts.
 - Never use emojis`;
 }

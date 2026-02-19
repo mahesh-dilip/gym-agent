@@ -6,18 +6,22 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { QuickActions } from "./QuickActions";
+import { QuickLogForm } from "./QuickLogForm";
 import { useSharedState } from "@/lib/state/shared-state";
 import { saveChatClient } from "@/lib/chat-store-client";
+import { getLastLogForExercise } from "@/lib/get-last-exercise-log";
+import type { ExerciseLog, SetDetail } from "@/lib/supabase/types";
 
 type Props = {
   initialMessages: UIMessage[];
 };
 
 export function ChatContainer({ initialMessages }: Props) {
-  const { state } = useSharedState();
+  const { state, persistExercise } = useSharedState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
   const [input, setInput] = useState("");
+  const [quickLogExercise, setQuickLogExercise] = useState<string | null>(null);
 
   const { messages, sendMessage, status, error } = useChat({
     messages: initialMessages.length > 0 ? initialMessages : undefined,
@@ -75,6 +79,39 @@ export function ChatContainer({ initialMessages }: Props) {
     sendMessage({ text });
   }
 
+  const handleQuickLog = useCallback((exerciseName: string) => {
+    setQuickLogExercise(exerciseName);
+  }, []);
+
+  const handleQuickLogSave = useCallback(
+    async (exercise: {
+      exercise_name: string;
+      category: "strength" | "cardio" | "flexibility";
+      sets: number;
+      reps: number | null;
+      weight: number | null;
+      weight_unit: string;
+      set_details: SetDetail[] | null;
+    }) => {
+      await persistExercise({
+        session_id: state.currentSession.id || "",
+        exercise_name: exercise.exercise_name,
+        category: exercise.category,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        weight: exercise.weight,
+        weight_unit: exercise.weight_unit,
+        duration_minutes: null,
+        distance_km: null,
+        notes: null,
+        order_index: state.currentSession.completedExercises.length,
+        set_details: exercise.set_details,
+      });
+      setQuickLogExercise(null);
+    },
+    [persistExercise, state.currentSession.id, state.currentSession.completedExercises.length]
+  );
+
   const session = state.currentSession;
   const hasActiveSession = session.status === "in_progress";
   const hasPlan = session.plannedExercises.length > 0;
@@ -92,6 +129,24 @@ export function ChatContainer({ initialMessages }: Props) {
       )
     ).length
     : 0;
+
+  // Quick log: look up last log and target sets for the exercise
+  const quickLogLastLog = quickLogExercise
+    ? getLastLogForExercise(quickLogExercise, state.recentHistory) ||
+      // Also check today's completed exercises
+      (state.currentSession.completedExercises.find(
+        (e) => e.exercise_name.toLowerCase() === quickLogExercise.toLowerCase()
+      ) as ExerciseLog | undefined) ||
+      null
+    : null;
+
+  const quickLogTargetSets = quickLogExercise
+    ? session.plannedExercises.find(
+        (p) => p.name.toLowerCase() === quickLogExercise.toLowerCase()
+      )?.target_sets ?? null
+    : null;
+
+  const defaultReps = state.preferences.default_reps ?? null;
 
   return (
     <div className="flex h-full flex-col relative bg-background">
@@ -238,19 +293,34 @@ export function ChatContainer({ initialMessages }: Props) {
 
       {/* Bottom Input Area */}
       <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-xl safe-bottom z-20 shadow-[0_-1px_20px_rgba(0,0,0,0.2)]">
-        <QuickActions
-          onAction={handleQuickAction}
-          disabled={isLoading}
-          sessionStatus={state.currentSession.status}
-          plannedExercises={state.currentSession.plannedExercises}
-          completedExercises={state.currentSession.completedExercises}
-        />
-        <ChatInput
-          input={input}
-          onChange={setInput}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
+        {quickLogExercise ? (
+          <QuickLogForm
+            exerciseName={quickLogExercise}
+            lastLog={quickLogLastLog}
+            defaultReps={defaultReps}
+            targetSets={quickLogTargetSets}
+            onSave={handleQuickLogSave}
+            onCancel={() => setQuickLogExercise(null)}
+          />
+        ) : (
+          <>
+            <QuickActions
+              onAction={handleQuickAction}
+              onQuickLog={handleQuickLog}
+              disabled={isLoading}
+              sessionStatus={state.currentSession.status}
+              plannedExercises={state.currentSession.plannedExercises}
+              completedExercises={state.currentSession.completedExercises}
+              recentHistory={state.recentHistory}
+            />
+            <ChatInput
+              input={input}
+              onChange={setInput}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+            />
+          </>
+        )}
       </div>
     </div>
   );

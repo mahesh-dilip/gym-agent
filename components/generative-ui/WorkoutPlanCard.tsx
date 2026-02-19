@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useSharedState } from "@/lib/state/shared-state";
+import { formatSetDetails } from "@/lib/format-sets";
+import type { SetDetail } from "@/lib/supabase/types";
 
 type Exercise = {
   name: string;
   target_sets: number;
   notes?: string;
+  last_weight?: number | null;
+  last_reps?: number | null;
+  last_sets?: number | null;
+  last_set_details?: SetDetail[] | null;
+  last_weight_unit?: string | null;
 };
 
 type WorkoutPlanData = {
@@ -81,23 +88,41 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
 
       {/* List */}
       <div className="divide-y divide-border-subtle bg-surface">
-        {data.exercises.map((exercise, i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-3 group hover:bg-surface-elevated/30 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-text-tertiary w-4">
-                {(i + 1).toString().padStart(2, '0')}
-              </span>
-              <span className="text-sm font-medium text-text-primary group-hover:text-primary transition-colors">
-                {exercise.name}
-              </span>
+        {data.exercises.map((exercise, i) => {
+          const hasHistory = exercise.last_weight != null || exercise.last_reps != null;
+          const lastLabel = exercise.last_set_details && exercise.last_set_details.length > 0
+            ? formatSetDetails(exercise.last_set_details, exercise.last_weight_unit || "kg")
+            : hasHistory
+              ? `${exercise.last_weight ?? "?"}${exercise.last_weight_unit || "kg"} x ${exercise.last_reps ?? "?"}`
+              : null;
+
+          return (
+            <div key={i} className="flex items-center justify-between px-4 py-3 group hover:bg-surface-elevated/30 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-[10px] font-mono text-text-tertiary w-4 shrink-0">
+                  {(i + 1).toString().padStart(2, '0')}
+                </span>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-text-primary group-hover:text-primary transition-colors block">
+                    {exercise.name}
+                  </span>
+                  {lastLabel ? (
+                    <span className="text-[10px] font-mono text-text-tertiary">
+                      Last: {lastLabel}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-primary/60">New</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-mono text-text-secondary bg-surface-elevated px-1.5 py-0.5 rounded border border-border-subtle">
+                  {exercise.target_sets} SETS
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-text-secondary bg-surface-elevated px-1.5 py-0.5 rounded border border-border-subtle">
-                {exercise.target_sets} SETS
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Footer / Action */}

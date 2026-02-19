@@ -72,11 +72,26 @@ export type ChatMessage = {
   created_at: string;
 };
 
+export type UserPreferences = {
+  default_reps?: number;
+  weight_unit?: string;
+};
+
 export type UserProfile = {
   id: string;
   user_id: string;
   name: string | null;
   goals_context: string | null;
+  preferences: UserPreferences;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserNote = {
+  id: string;
+  user_id: string;
+  note: string;
+  category: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -39,6 +39,34 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
       return <EditExerciseCard data={data as never} isLoading={isLoading} />;
     case "delete_session":
       return <DeleteSessionCard data={data as never} isLoading={isLoading} />;
+    case "set_preference": {
+      if (isLoading) return <div className="text-xs text-text-tertiary animate-pulse">Saving preference...</div>;
+      const prefData = data as { status?: string; key?: string; value?: unknown };
+      if (prefData.status === "saved") {
+        return (
+          <div className="inline-flex items-center gap-2 text-xs font-mono text-success bg-success-muted/10 border border-success/20 px-3 py-1.5 rounded">
+            <span className="opacity-70">PREF_SAVED</span>
+            <span className="font-bold">{prefData.key} = {String(prefData.value)}</span>
+          </div>
+        );
+      }
+      return null;
+    }
+    case "log_note": {
+      if (isLoading) return <div className="text-xs text-text-tertiary animate-pulse">Saving note...</div>;
+      const noteData = data as { status?: string; note?: string; category?: string };
+      if (noteData.status === "saved") {
+        return (
+          <div className="inline-flex items-center gap-2 text-xs font-mono text-primary bg-primary/5 border border-primary/20 px-3 py-1.5 rounded">
+            {noteData.category && (
+              <span className="text-[10px] uppercase tracking-wider bg-primary/10 px-1.5 py-0.5 rounded">{noteData.category}</span>
+            )}
+            <span>Noted: {noteData.note}</span>
+          </div>
+        );
+      }
+      return null;
+    }
     default:
       return null;
   }
@@ -114,6 +142,8 @@ export function ChatMessage({ message }: { message: UIMessage }) {
               "show_progress",
               "backfill_workout",
               "delete_session",
+              "set_preference",
+              "log_note",
             ]);
             const data = SERVER_TOOLS.has(toolName)
               ? output ?? input
