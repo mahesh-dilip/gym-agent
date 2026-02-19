@@ -14,6 +14,9 @@ type Exercise = {
   last_sets?: number | null;
   last_set_details?: SetDetail[] | null;
   last_weight_unit?: string | null;
+  pr_weight?: number | null;
+  pr_reps?: number | null;
+  pr_weight_unit?: string | null;
 };
 
 type WorkoutPlanData = {
@@ -96,6 +99,14 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
               ? `${exercise.last_weight ?? "?"}${exercise.last_weight_unit || "kg"} x ${exercise.last_reps ?? "?"}`
               : null;
 
+          const hasPr = exercise.pr_weight != null;
+          const prLabel = hasPr
+            ? `${exercise.pr_weight}${exercise.pr_weight_unit || "kg"}${exercise.pr_reps ? ` x ${exercise.pr_reps}` : ""}`
+            : null;
+
+          // Only show PR if it's different from last weight (otherwise redundant)
+          const showPr = prLabel && exercise.pr_weight !== exercise.last_weight;
+
           return (
             <div key={i} className="flex items-center justify-between px-4 py-3 group hover:bg-surface-elevated/30 transition-colors">
               <div className="flex items-center gap-3 min-w-0">
@@ -106,13 +117,20 @@ export function WorkoutPlanCard({ data, isLoading }: Props) {
                   <span className="text-sm font-medium text-text-primary group-hover:text-primary transition-colors block">
                     {exercise.name}
                   </span>
-                  {lastLabel ? (
-                    <span className="text-[10px] font-mono text-text-tertiary">
-                      Last: {lastLabel}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-mono text-primary/60">New</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {lastLabel ? (
+                      <span className="text-[10px] font-mono text-text-tertiary">
+                        Last: {lastLabel}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono text-primary/60">New</span>
+                    )}
+                    {showPr && (
+                      <span className="text-[10px] font-mono text-warning">
+                        PR: {prLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

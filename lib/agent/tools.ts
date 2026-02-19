@@ -103,14 +103,29 @@ export function createAgentTools(userId: string) {
           const supabase = await createClient();
           const enriched = await Promise.all(
             input.exercises.map(async (ex) => {
-              const { data: lastLog } = await supabase
-                .from("exercise_logs")
-                .select("sets, reps, weight, weight_unit, set_details")
-                .eq("user_id", userId)
-                .ilike("exercise_name", ex.name)
-                .order("logged_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
+              // Fetch last log and PR (max weight) in parallel
+              const [lastResult, prResult] = await Promise.all([
+                supabase
+                  .from("exercise_logs")
+                  .select("sets, reps, weight, weight_unit, set_details")
+                  .eq("user_id", userId)
+                  .ilike("exercise_name", ex.name)
+                  .order("logged_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+                supabase
+                  .from("exercise_logs")
+                  .select("weight, weight_unit, reps, logged_at")
+                  .eq("user_id", userId)
+                  .ilike("exercise_name", ex.name)
+                  .not("weight", "is", null)
+                  .order("weight", { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+              ]);
+
+              const lastLog = lastResult.data;
+              const prLog = prResult.data;
 
               return {
                 ...ex,
@@ -119,6 +134,9 @@ export function createAgentTools(userId: string) {
                 last_sets: lastLog?.sets ?? null,
                 last_set_details: lastLog?.set_details ?? null,
                 last_weight_unit: lastLog?.weight_unit ?? null,
+                pr_weight: prLog?.weight ?? null,
+                pr_reps: prLog?.reps ?? null,
+                pr_weight_unit: prLog?.weight_unit ?? null,
               };
             })
           );

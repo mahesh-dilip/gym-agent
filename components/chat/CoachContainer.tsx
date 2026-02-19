@@ -7,6 +7,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { saveChatClientWithId, loadChatClient } from "@/lib/chat-store-client";
 import { createClient } from "@/lib/supabase/client";
+import type { UserNote } from "@/lib/supabase/types";
 
 const COACH_QUICK_ACTIONS = [
   { label: "REVIEW GOALS", text: "Review my current goals and progress" },
@@ -14,17 +15,27 @@ const COACH_QUICK_ACTIONS = [
   { label: "SET A GOAL", text: "I want to set a new fitness goal" },
 ];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  health: "text-danger border-danger/30 bg-danger/5",
+  goal: "text-primary border-primary/30 bg-primary/5",
+  preference: "text-warning border-warning/30 bg-warning/5",
+  observation: "text-text-secondary border-border bg-surface-elevated/50",
+};
+
 export function CoachContainer() {
   const [coachChatId, setCoachChatId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(null);
+  const [notes, setNotes] = useState<UserNote[]>([]);
+  const [notesOpen, setNotesOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
   const [input, setInput] = useState("");
 
-  // Load coach chat ID and messages on mount
+  const supabase = useMemo(() => createClient(), []);
+
+  // Load coach chat + notes on mount
   useEffect(() => {
     async function loadCoach() {
-      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -33,11 +44,20 @@ export function CoachContainer() {
       const chatId = `${user.id}-coach`;
       setCoachChatId(chatId);
 
-      const msgs = await loadChatClient(chatId);
+      const [msgs, notesResult] = await Promise.all([
+        loadChatClient(chatId),
+        supabase
+          .from("user_notes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
       setInitialMessages(msgs);
+      setNotes((notesResult.data as UserNote[]) || []);
     }
     loadCoach();
-  }, []);
+  }, [supabase]);
 
   const coachTransport = useMemo(
     () => new DefaultChatTransport({ api: "/api/chat?mode=coach" }),
@@ -51,7 +71,7 @@ export function CoachContainer() {
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  // Save messages
+  // Refresh notes when AI finishes responding (may have saved a new note)
   const prevStatusRef = useRef(status);
   const lastSavedLengthRef = useRef(0);
   useEffect(() => {
@@ -70,8 +90,22 @@ export function CoachContainer() {
     if (statusChanged && status === "ready") {
       lastSavedLengthRef.current = messages.length;
       saveChatClientWithId(coachChatId, messages);
+
+      // Refresh notes in case the coach saved a new one
+      (async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("user_notes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        if (data) setNotes(data as UserNote[]);
+      })();
     }
-  }, [messages, status, coachChatId]);
+  }, [messages, status, coachChatId, supabase]);
 
   // Auto-scroll
   useEffect(() => {
@@ -113,8 +147,47 @@ export function CoachContainer() {
     <div className="flex h-full flex-col relative bg-background">
       <div
         ref={scrollRef}
-        className="scroll-container hide-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-6"
+        className="scroll-container hide-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4"
       >
+        {/* Notes panel */}
+        {notes.length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setNotesOpen(!notesOpen)}
+              className="flex items-center gap-2 w-full text-left group"
+            >
+              <span className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary group-hover:text-text-secondary transition-colors">
+                My Notes ({notes.length})
+              </span>
+              <span className={`text-[10px] text-text-tertiary transition-transform ${notesOpen ? "rotate-90" : ""}`}>
+                ▸
+              </span>
+            </button>
+            {notesOpen && (
+              <div className="mt-2 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="flex items-start gap-2 text-xs"
+                  >
+                    <span
+                      className={`shrink-0 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                        CATEGORY_COLORS[note.category || "observation"] ||
+                        CATEGORY_COLORS.observation
+                      }`}
+                    >
+                      {note.category || "note"}
+                    </span>
+                    <span className="text-text-secondary leading-relaxed">
+                      {note.note}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty state */}
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
