@@ -10,6 +10,9 @@ import { GoalCard } from "@/components/generative-ui/GoalCard";
 import { BackfillCard } from "@/components/generative-ui/BackfillCard";
 import { ExerciseInfoCard } from "@/components/generative-ui/ExerciseInfoCard";
 import { ProgressCard } from "@/components/generative-ui/ProgressCard";
+import { ProgressChartCard } from "@/components/generative-ui/ProgressChartCard";
+import { AnalyticsCard } from "@/components/generative-ui/AnalyticsCard";
+import { PRDashboardCard } from "@/components/generative-ui/PRDashboardCard";
 import { DeleteExerciseCard } from "@/components/generative-ui/DeleteExerciseCard";
 import { EditExerciseCard } from "@/components/generative-ui/EditExerciseCard";
 import { DeleteSessionCard } from "@/components/generative-ui/DeleteSessionCard";
@@ -31,8 +34,17 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
       return <BackfillCard data={data as never} isLoading={isLoading} />;
     case "exercise_info":
       return <ExerciseInfoCard data={data as never} isLoading={isLoading} />;
-    case "show_progress":
+    case "show_progress": {
+      const progressData = data as { view?: string };
+      if (progressData.view === "chart") {
+        return <ProgressChartCard data={data as never} isLoading={isLoading} />;
+      }
       return <ProgressCard data={data as never} isLoading={isLoading} />;
+    }
+    case "show_analytics":
+      return <AnalyticsCard data={data as never} isLoading={isLoading} />;
+    case "show_prs":
+      return <PRDashboardCard data={data as never} isLoading={isLoading} />;
     case "delete_exercise":
       return <DeleteExerciseCard data={data as never} isLoading={isLoading} />;
     case "edit_exercise":
@@ -72,31 +84,98 @@ function getToolComponent(toolName: string, input: unknown, isLoading: boolean) 
   }
 }
 
-function renderInlineMarkdown(text: string): ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
-  return parts.map((segment, i) => {
-    if (segment.startsWith("**") && segment.endsWith("**")) {
-      return (
-        <strong key={i} className="font-semibold text-text-primary">
-          {segment.slice(2, -2)}
-        </strong>
+function renderInlineSegment(segment: string, key: number): ReactNode {
+  if (segment.startsWith("**") && segment.endsWith("**")) {
+    return (
+      <strong key={key} className="font-semibold text-text-primary">
+        {segment.slice(2, -2)}
+      </strong>
+    );
+  }
+  if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
+    return <em key={key} className="text-text-secondary not-italic">{segment.slice(1, -1)}</em>;
+  }
+  if (segment.startsWith("`") && segment.endsWith("`")) {
+    return (
+      <code
+        key={key}
+        className="rounded-sm bg-surface-elevated px-1.5 py-0.5 font-mono text-[12px] text-primary-hover border border-border-subtle"
+      >
+        {segment.slice(1, -1)}
+      </code>
+    );
+  }
+  return segment;
+}
+
+function renderInlineMarkdown(line: string): ReactNode[] {
+  const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  return parts.map((seg, i) => renderInlineSegment(seg, i));
+}
+
+function renderMarkdownText(text: string): ReactNode[] {
+  // Split into lines, process each
+  const lines = text.split("\n");
+  const elements: ReactNode[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Strip markdown headers — render as bold text
+    if (/^#{1,4}\s+/.test(line)) {
+      line = line.replace(/^#{1,4}\s+/, "");
+      elements.push(
+        <div key={key++} className="mt-2 first:mt-0">
+          <strong className="font-semibold text-text-primary">{renderInlineMarkdown(line)}</strong>
+        </div>
       );
+      continue;
     }
-    if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
-      return <em key={i} className="text-text-secondary not-italic">{segment.slice(1, -1)}</em>;
+
+    // Horizontal rules — thin separator
+    if (/^-{3,}$/.test(line.trim())) {
+      elements.push(<div key={key++} className="border-t border-border/50 my-2" />);
+      continue;
     }
-    if (segment.startsWith("`") && segment.endsWith("`")) {
-      return (
-        <code
-          key={i}
-          className="rounded-sm bg-surface-elevated px-1.5 py-0.5 font-mono text-[12px] text-primary-hover border border-border-subtle"
-        >
-          {segment.slice(1, -1)}
-        </code>
+
+    // List items (- or *)
+    if (/^\s*[-*]\s+/.test(line)) {
+      const content = line.replace(/^\s*[-*]\s+/, "");
+      elements.push(
+        <div key={key++} className="flex gap-2 pl-1">
+          <span className="text-text-tertiary shrink-0">·</span>
+          <span>{renderInlineMarkdown(content)}</span>
+        </div>
       );
+      continue;
     }
-    return segment;
-  });
+
+    // Numbered list items
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const match = line.match(/^\s*(\d+)\.\s+(.*)/);
+      if (match) {
+        elements.push(
+          <div key={key++} className="flex gap-2 pl-1">
+            <span className="text-text-tertiary shrink-0 font-mono text-xs">{match[1]}.</span>
+            <span>{renderInlineMarkdown(match[2])}</span>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // Empty lines → spacing
+    if (line.trim() === "") {
+      elements.push(<div key={key++} className="h-2" />);
+      continue;
+    }
+
+    // Regular text
+    elements.push(<div key={key++}>{renderInlineMarkdown(line)}</div>);
+  }
+
+  return elements;
 }
 
 export function ChatMessage({ message }: { message: UIMessage }) {
@@ -120,7 +199,7 @@ export function ChatMessage({ message }: { message: UIMessage }) {
                     : "text-left text-[15px] text-text-secondary leading-relaxed max-w-prose"
                   }`}
               >
-                {isUser ? part.text : renderInlineMarkdown(part.text)}
+                {isUser ? part.text : renderMarkdownText(part.text)}
               </div>
             );
           }
@@ -140,6 +219,8 @@ export function ChatMessage({ message }: { message: UIMessage }) {
               "delete_exercise",
               "edit_exercise",
               "show_progress",
+              "show_analytics",
+              "show_prs",
               "backfill_workout",
               "delete_session",
               "set_preference",

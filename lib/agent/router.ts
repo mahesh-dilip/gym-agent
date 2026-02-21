@@ -51,6 +51,15 @@ const SONNET_PATTERNS = [
   /substitute/i,
   /replace/i,
 
+  // Charts & analytics
+  /chart/i,
+  /graph/i,
+  /analytics/i,
+  /volume/i,
+  /visuali[sz]e/i,
+  /distribution/i,
+  /all.*my.*pr/i,
+
   // Goals & programming
   /goal/i,
   /progress/i,

@@ -153,8 +153,15 @@ export function SessionHeader() {
         {/* Actions */}
         <div className="flex items-center gap-1">
           <button
+            onClick={() => router.push("/stats")}
+            className="p-2 hover:bg-surface-elevated rounded transition-colors text-text-secondary"
+            aria-label="Stats"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+          </button>
+          <button
             onClick={() => router.push("/history")}
-            className="p-2 hover:bg-surface-elevated rounded transition-colors text-text-secondary" 
+            className="p-2 hover:bg-surface-elevated rounded transition-colors text-text-secondary"
             aria-label="History"
           >
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>

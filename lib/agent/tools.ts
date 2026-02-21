@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { createClient } from "@/lib/supabase/server";
+import { inferMuscleGroup } from "@/lib/muscle-groups";
+import { format, subWeeks, startOfWeek } from "date-fns";
 
 const sharedTools = {
   log_exercise: tool({
@@ -403,9 +405,10 @@ export function createAgentTools(userId: string) {
 
     show_progress: tool({
       description:
-        "Show the user's progress history for a specific exercise. Use when user asks about their progress, personal best, or history for an exercise.",
+        "Show the user's progress history for a specific exercise. Use when user asks about their progress, personal best, or history for an exercise. Use view='chart' when user asks to see a chart or graph.",
       inputSchema: z.object({
         exercise_name: z.string().describe("Exercise name to look up"),
+        view: z.enum(["list", "chart"]).default("list").describe("Display mode: 'list' for history, 'chart' for visual graph"),
       }),
       execute: async (input) => {
         try {
@@ -417,7 +420,7 @@ export function createAgentTools(userId: string) {
             .eq("user_id", userId)
             .ilike("exercise_name", `%${input.exercise_name}%`)
             .order("logged_at", { ascending: false })
-            .limit(10);
+            .limit(input.view === "chart" ? 200 : 10);
 
           if (!logs || logs.length === 0) {
             return {
@@ -497,6 +500,7 @@ export function createAgentTools(userId: string) {
 
           return {
             status: "found",
+            view: input.view,
             exercise_name: logs[0].exercise_name,
             total_sessions: logs.length,
             history,
@@ -714,6 +718,184 @@ export function createAgentTools(userId: string) {
             date: input.date || "today",
             message: "Failed to delete session",
           };
+        }
+      },
+    }),
+
+    show_analytics: tool({
+      description:
+        "Show training volume and muscle group distribution analytics. Use when user asks about volume, which muscles they train, or training analytics.",
+      inputSchema: z.object({
+        period_weeks: z.number().default(8).describe("Number of weeks to analyze (default 8)"),
+      }),
+      execute: async (input) => {
+        try {
+          const supabase = await createClient();
+          const cutoffDate = format(subWeeks(new Date(), input.period_weeks), "yyyy-MM-dd");
+
+          const { data: logs } = await supabase
+            .from("exercise_logs")
+            .select("exercise_name, sets, reps, weight, weight_unit, set_details, logged_at, workout_sessions!inner(date)")
+            .eq("user_id", userId)
+            .gte("workout_sessions.date", cutoffDate)
+            .order("logged_at", { ascending: true });
+
+          if (!logs || logs.length === 0) {
+            return { status: "no_data", message: "No workout data found for this period" };
+          }
+
+          // Compute volume per entry
+          type LogEntry = typeof logs[number];
+          function getVolume(l: LogEntry): number {
+            const sd = l.set_details as Array<{ weight?: number | null; reps?: number | null }> | null;
+            if (sd && sd.length > 0) {
+              return sd.reduce((sum, s) => {
+                if (s.weight && s.reps) return sum + s.weight * s.reps;
+                return sum;
+              }, 0);
+            }
+            if (l.sets && l.reps && l.weight) return l.sets * l.reps * l.weight;
+            return 0;
+          }
+
+          // Group by week + muscle group
+          const weeklyMap = new Map<string, Map<string, number>>();
+          const muscleVolumes = new Map<string, number>();
+          const sessionDates = new Set<string>();
+
+          for (const l of logs) {
+            const date = (l.workout_sessions as unknown as { date: string }).date;
+            sessionDates.add(date);
+            const weekStart = format(startOfWeek(new Date(date), { weekStartsOn: 1 }), "yyyy-MM-dd");
+            const muscle = inferMuscleGroup(l.exercise_name);
+            const vol = getVolume(l);
+
+            if (!weeklyMap.has(weekStart)) weeklyMap.set(weekStart, new Map());
+            const weekData = weeklyMap.get(weekStart)!;
+            weekData.set(muscle, (weekData.get(muscle) || 0) + vol);
+
+            muscleVolumes.set(muscle, (muscleVolumes.get(muscle) || 0) + vol);
+          }
+
+          const totalVolume = Array.from(muscleVolumes.values()).reduce((a, b) => a + b, 0);
+
+          // Weekly volume array sorted by date
+          const weekly_volume = Array.from(weeklyMap.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([week, muscles]) => ({
+              week,
+              muscles: Object.fromEntries(muscles),
+            }));
+
+          // Muscle distribution sorted by volume
+          const muscle_distribution = Array.from(muscleVolumes.entries())
+            .sort(([, a], [, b]) => b - a)
+            .map(([muscle, volume]) => ({
+              muscle,
+              volume,
+              percentage: Math.round((volume / totalVolume) * 100),
+            }));
+
+          return {
+            status: "found",
+            period_weeks: input.period_weeks,
+            total_sessions: sessionDates.size,
+            total_volume: totalVolume,
+            weekly_volume,
+            muscle_distribution,
+          };
+        } catch {
+          return { status: "error", message: "Failed to load analytics" };
+        }
+      },
+    }),
+
+    show_prs: tool({
+      description:
+        "Show personal records (PRs) across all exercises. Use when user asks about their PRs, records, or best lifts.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const supabase = await createClient();
+
+          const { data: logs } = await supabase
+            .from("exercise_logs")
+            .select("exercise_name, weight, weight_unit, reps, set_details, logged_at, workout_sessions!inner(date)")
+            .eq("user_id", userId)
+            .not("weight", "is", null)
+            .order("logged_at", { ascending: false });
+
+          if (!logs || logs.length === 0) {
+            return { status: "no_data", message: "No exercise data found" };
+          }
+
+          // Group by exercise, find max weight per exercise
+          const exerciseMap = new Map<string, {
+            exercise_name: string;
+            pr_weight: number;
+            pr_weight_unit: string;
+            pr_reps: number | null;
+            pr_date: string;
+            total_sessions: number;
+            first_weight: number | null;
+            estimated_1rm: number | null;
+          }>();
+
+          for (const log of logs) {
+            const name = log.exercise_name;
+            const date = (log.workout_sessions as unknown as { date: string }).date;
+            const existing = exerciseMap.get(name);
+
+            if (!existing) {
+              const est1rm = log.weight && log.reps && log.reps > 0
+                ? Math.round(log.weight * (1 + log.reps / 30))
+                : null;
+              exerciseMap.set(name, {
+                exercise_name: name,
+                pr_weight: log.weight!,
+                pr_weight_unit: log.weight_unit,
+                pr_reps: log.reps,
+                pr_date: date,
+                total_sessions: 1,
+                first_weight: log.weight,
+                estimated_1rm: est1rm,
+              });
+            } else {
+              existing.total_sessions++;
+              // Logs are desc, so later entries are older — track earliest weight
+              existing.first_weight = log.weight;
+              if (log.weight! > existing.pr_weight) {
+                existing.pr_weight = log.weight!;
+                existing.pr_weight_unit = log.weight_unit;
+                existing.pr_reps = log.reps;
+                existing.pr_date = date;
+              }
+              const est1rm = log.weight && log.reps && log.reps > 0
+                ? Math.round(log.weight * (1 + log.reps / 30))
+                : null;
+              if (est1rm && (!existing.estimated_1rm || est1rm > existing.estimated_1rm)) {
+                existing.estimated_1rm = est1rm;
+              }
+            }
+          }
+
+          // Calculate improvement % and sort by weight desc
+          const prs = Array.from(exerciseMap.values())
+            .map((pr) => ({
+              ...pr,
+              improvement_pct: pr.first_weight && pr.first_weight > 0
+                ? Math.round(((pr.pr_weight - pr.first_weight) / pr.first_weight) * 100)
+                : null,
+            }))
+            .sort((a, b) => b.pr_weight - a.pr_weight);
+
+          return {
+            status: "found",
+            total_exercises: prs.length,
+            prs,
+          };
+        } catch {
+          return { status: "error", message: "Failed to load PRs" };
         }
       },
     }),

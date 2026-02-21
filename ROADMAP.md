@@ -46,25 +46,25 @@
 
 ---
 
-## Phase 3: New Dependency (Charting Library)
-*Install recharts. Build chart components.*
+## Phase 3: Charting & Visualization ✅
+*Installed chart.js + react-chartjs-2. Built chart components.*
 
-**Estimated effort**: 5-7 days
+### 3a. Progress Charts ✅
+- Installed `chart.js` + `react-chartjs-2` (~20KB gzipped, mobile-optimized)
+- New `ProgressChartCard` with line chart (weight or volume toggle)
+- Extended `show_progress` tool with `view` parameter ("list" | "chart")
+- Time range selector (4W / 3M / 6M / ALL)
+- PR point highlighted in gold on chart
 
-### 3a. Progress Charts
-- Install `recharts`
-- New `ProgressChartCard` with line charts (weight, volume, estimated 1RM over time)
-- Extend `show_progress` tool with `view` parameter ("list" | "chart")
-- Time range selector (4w / 3m / 6m / 1y / all)
-
-### 3b. Volume & Muscle Distribution Charts
+### 3b. Volume & Muscle Distribution Charts ✅
 - New `show_analytics` tool returning weekly volume by muscle group
-- New `AnalyticsCard` with pie/bar charts
+- New `AnalyticsCard` with doughnut chart (muscle distribution) + stacked bar chart (weekly volume)
+- Shared `lib/muscle-groups.ts` module extracted from history page
 
-### 3c. PR History Dashboard
-- New `prs` table for efficient PR queries
-- New `show_prs` tool + `PRDashboardCard`
-- Timeline chart of PR history
+### 3c. PR Dashboard ✅
+- New `show_prs` tool computing PRs from exercise_logs (no separate table needed)
+- New `PRDashboardCard` — clean list view with PR weight, est 1RM, improvement %
+- Sorted by weight descending
 
 ---
 
