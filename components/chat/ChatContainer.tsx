@@ -106,6 +106,8 @@ export function ChatContainer({ initialMessages }: Props) {
         notes: null,
         order_index: state.currentSession.completedExercises.length,
         set_details: exercise.set_details,
+        rpe: null,
+        rir: null,
       });
       setQuickLogExercise(null);
     },

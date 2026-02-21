@@ -16,12 +16,16 @@ const sharedTools = {
       duration_minutes: z.number().optional().describe("Duration in minutes for cardio/flexibility"),
       distance_km: z.number().optional().describe("Distance in km for cardio"),
       notes: z.string().optional().describe("Any additional notes"),
+      rpe: z.number().min(1).max(10).optional().describe("Rate of Perceived Exertion (1-10 scale). Use when user reports effort like 'that was an 8' or 'RPE 9'."),
+      rir: z.number().min(0).max(10).optional().describe("Reps In Reserve (0-10). Use when user says 'had 2 left in the tank' or 'RIR 1'."),
       set_details: z
         .array(
           z.object({
             set_number: z.number().describe("Set number (1-based)"),
             weight: z.number().nullable().describe("Weight for this set"),
             reps: z.number().nullable().describe("Reps for this set"),
+            rpe: z.number().min(1).max(10).optional().describe("RPE for this specific set"),
+            rir: z.number().min(0).max(10).optional().describe("RIR for this specific set"),
           })
         )
         .optional()
@@ -291,12 +295,16 @@ export function createAgentTools(userId: string) {
           .optional()
           .describe("New distance in km"),
         notes: z.string().optional().describe("New notes"),
+        rpe: z.number().min(1).max(10).optional().describe("New RPE value"),
+        rir: z.number().min(0).max(10).optional().describe("New RIR value"),
         set_details: z
           .array(
             z.object({
               set_number: z.number().describe("Set number (1-based)"),
               weight: z.number().nullable().describe("Weight for this set"),
               reps: z.number().nullable().describe("Reps for this set"),
+              rpe: z.number().min(1).max(10).optional().describe("RPE for this set"),
+              rir: z.number().min(0).max(10).optional().describe("RIR for this set"),
             })
           )
           .optional()
@@ -350,6 +358,8 @@ export function createAgentTools(userId: string) {
           if (input.distance_km !== undefined)
             updates.distance_km = input.distance_km;
           if (input.notes !== undefined) updates.notes = input.notes;
+          if (input.rpe !== undefined) updates.rpe = input.rpe;
+          if (input.rir !== undefined) updates.rir = input.rir;
           if (input.set_details !== undefined)
             updates.set_details = input.set_details;
 
@@ -403,7 +413,7 @@ export function createAgentTools(userId: string) {
 
           const { data: logs } = await supabase
             .from("exercise_logs")
-            .select("exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, set_details, logged_at, workout_sessions!inner(date)")
+            .select("exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, set_details, rpe, logged_at, workout_sessions!inner(date)")
             .eq("user_id", userId)
             .ilike("exercise_name", `%${input.exercise_name}%`)
             .order("logged_at", { ascending: false })
@@ -423,17 +433,67 @@ export function createAgentTools(userId: string) {
             ? withWeight.reduce((best, l) => (l.weight! > best.weight! ? l : best))
             : null;
 
-          // Build history entries
-          const history = logs.map((l) => ({
-            date: (l.workout_sessions as unknown as { date: string }).date,
-            sets: l.sets,
-            reps: l.reps,
-            weight: l.weight,
-            weight_unit: l.weight_unit,
-            duration_minutes: l.duration_minutes,
-            distance_km: l.distance_km,
-            set_details: l.set_details,
-          }));
+          // Build history entries with computed stats
+          const history = logs.map((l) => {
+            const setDetails = l.set_details as Array<{ set_number: number; weight: number | null; reps: number | null; rpe?: number | null }> | null;
+
+            // Calculate volume: sum(weight * reps) across all sets
+            let volume: number | null = null;
+            if (setDetails && setDetails.length > 0) {
+              volume = setDetails.reduce((sum, s) => {
+                if (s.weight && s.reps) return sum + s.weight * s.reps;
+                return sum;
+              }, 0);
+            } else if (l.sets && l.reps && l.weight) {
+              volume = l.sets * l.reps * l.weight;
+            }
+
+            // Estimated 1RM (Epley formula): weight × (1 + reps / 30)
+            let estimated_1rm: number | null = null;
+            if (l.weight && l.reps && l.reps > 0) {
+              estimated_1rm = Math.round(l.weight * (1 + l.reps / 30));
+            }
+
+            return {
+              date: (l.workout_sessions as unknown as { date: string }).date,
+              sets: l.sets,
+              reps: l.reps,
+              weight: l.weight,
+              weight_unit: l.weight_unit,
+              duration_minutes: l.duration_minutes,
+              distance_km: l.distance_km,
+              set_details: l.set_details,
+              rpe: l.rpe,
+              volume,
+              estimated_1rm,
+            };
+          });
+
+          // Compute trend: compare first half vs second half average weight
+          let trend: "up" | "down" | "flat" | null = null;
+          if (withWeight.length >= 4) {
+            const mid = Math.floor(withWeight.length / 2);
+            const recentAvg = withWeight.slice(0, mid).reduce((s, l) => s + l.weight!, 0) / mid;
+            const olderAvg = withWeight.slice(mid).reduce((s, l) => s + l.weight!, 0) / (withWeight.length - mid);
+            const diff = ((recentAvg - olderAvg) / olderAvg) * 100;
+            if (diff > 3) trend = "up";
+            else if (diff < -3) trend = "down";
+            else trend = "flat";
+          }
+
+          // Frequency: average days between sessions
+          let avg_frequency_days: number | null = null;
+          if (logs.length >= 2) {
+            const dates = logs.map((l) => new Date((l.workout_sessions as unknown as { date: string }).date).getTime());
+            const totalSpan = dates[0] - dates[dates.length - 1];
+            avg_frequency_days = Math.round(totalSpan / (1000 * 60 * 60 * 24) / (logs.length - 1));
+          }
+
+          // Best estimated 1RM across all sessions
+          const best_estimated_1rm = history.reduce((best, h) => {
+            if (h.estimated_1rm && h.estimated_1rm > (best ?? 0)) return h.estimated_1rm;
+            return best;
+          }, null as number | null);
 
           return {
             status: "found",
@@ -448,6 +508,12 @@ export function createAgentTools(userId: string) {
                   date: (personalBest.workout_sessions as unknown as { date: string }).date,
                 }
               : null,
+            stats: {
+              trend,
+              avg_frequency_days,
+              best_estimated_1rm,
+              best_estimated_1rm_unit: personalBest?.weight_unit || logs[0].weight_unit,
+            },
           };
         } catch {
           return { status: "error", exercise_name: input.exercise_name, message: "Failed to load progress" };
@@ -471,12 +537,16 @@ export function createAgentTools(userId: string) {
             duration_minutes: z.number().optional().describe("Duration in minutes"),
             distance_km: z.number().optional().describe("Distance in km"),
             notes: z.string().optional().describe("Notes about this exercise"),
+            rpe: z.number().min(1).max(10).optional().describe("RPE for this exercise"),
+            rir: z.number().min(0).max(10).optional().describe("RIR for this exercise"),
             set_details: z
               .array(
                 z.object({
                   set_number: z.number().describe("Set number (1-based)"),
                   weight: z.number().nullable().describe("Weight for this set"),
                   reps: z.number().nullable().describe("Reps for this set"),
+                  rpe: z.number().min(1).max(10).optional().describe("RPE for this set"),
+                  rir: z.number().min(0).max(10).optional().describe("RIR for this set"),
                 })
               )
               .optional()
@@ -553,6 +623,8 @@ export function createAgentTools(userId: string) {
             notes: e.notes || null,
             order_index: i,
             set_details: e.set_details ?? null,
+            rpe: e.rpe ?? null,
+            rir: e.rir ?? null,
           }));
 
           const { error: logError } = await supabase

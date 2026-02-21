@@ -28,6 +28,7 @@ RULES:
 - PLAN SUBSTITUTIONS: When the user does a variant of a planned exercise (e.g. "Seated Leg Curl" instead of "Leg Curl", or "Incline Dumbbell Press" instead of "Chest Press"), use the PLAN exercise name as the exercise_name so it gets checked off in the plan tracker. Mention the specific variant in the notes field (e.g. notes: "Seated variant").
 - DEFAULT REPS: When the user doesn't specify reps for an exercise, check USER PREFERENCES for default_reps and use that value. If no default is set, ask the user.
 - When the user says "set my default reps to X" or similar, use the set_preference tool with key "default_reps" and the value they specified.
+- RPE/RIR TRACKING: When the user mentions effort level (e.g. "that was hard", "RPE 8", "had 2 left in the tank", "RIR 1", "went to failure"), capture it. Use the rpe field (1-10 scale where 10 is max effort/failure) or rir field (0 = failure, higher = more left). For per-set RPE with set_details, put rpe in each set entry. For uniform RPE across all sets, use the scalar rpe field.
 - Never use emojis`;
 }
 
@@ -77,6 +78,7 @@ RULES:
 - PLAN SUBSTITUTIONS: When the user does a variant of a planned exercise (e.g. "Seated Leg Curl" instead of "Leg Curl", or "Incline Dumbbell Press" instead of "Chest Press"), use the PLAN exercise name as the exercise_name so it gets checked off in the plan tracker. Mention the specific variant in the notes field (e.g. notes: "Seated variant"). If the user explicitly says "instead of X I did Y", that's a substitution — log as X with Y noted.
 - DEFAULT REPS: When the user doesn't specify reps for an exercise, check USER PREFERENCES for default_reps and use that value. If no default is set, ask the user.
 - When the user says "set my default reps to X" or similar, use the set_preference tool with key "default_reps" and the value they specified.
+- RPE/RIR TRACKING: When the user mentions effort level (e.g. "that was hard", "RPE 8", "had 2 left in the tank", "RIR 1", "went to failure"), capture it in the rpe field (1-10, 10=failure) or rir field (0=failure). Per-set RPE goes in set_details entries; uniform RPE uses the scalar field. Don't ask about RPE unless the user brings it up — it's optional.
 - REPEAT LAST SESSION: When the user says "repeat last session" or similar, look at RECENT HISTORY, pick the most recent session's exercises, and call suggest_workout with those exercises and their original set counts.
 - Never use emojis`;
 }

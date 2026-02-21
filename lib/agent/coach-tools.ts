@@ -146,7 +146,7 @@ export function createCoachTools(userId: string) {
           const { data: logs } = await supabase
             .from("exercise_logs")
             .select(
-              "exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, set_details, logged_at, workout_sessions!inner(date)"
+              "exercise_name, sets, reps, weight, weight_unit, duration_minutes, distance_km, set_details, rpe, logged_at, workout_sessions!inner(date)"
             )
             .eq("user_id", userId)
             .ilike("exercise_name", `%${input.exercise_name}%`)
@@ -169,16 +169,60 @@ export function createCoachTools(userId: string) {
                 )
               : null;
 
-          const history = logs.map((l) => ({
-            date: (l.workout_sessions as unknown as { date: string }).date,
-            sets: l.sets,
-            reps: l.reps,
-            weight: l.weight,
-            weight_unit: l.weight_unit,
-            duration_minutes: l.duration_minutes,
-            distance_km: l.distance_km,
-            set_details: l.set_details,
-          }));
+          const history = logs.map((l) => {
+            const setDetails = l.set_details as Array<{ set_number: number; weight: number | null; reps: number | null }> | null;
+            let volume: number | null = null;
+            if (setDetails && setDetails.length > 0) {
+              volume = setDetails.reduce((sum, s) => {
+                if (s.weight && s.reps) return sum + s.weight * s.reps;
+                return sum;
+              }, 0);
+            } else if (l.sets && l.reps && l.weight) {
+              volume = l.sets * l.reps * l.weight;
+            }
+
+            let estimated_1rm: number | null = null;
+            if (l.weight && l.reps && l.reps > 0) {
+              estimated_1rm = Math.round(l.weight * (1 + l.reps / 30));
+            }
+
+            return {
+              date: (l.workout_sessions as unknown as { date: string }).date,
+              sets: l.sets,
+              reps: l.reps,
+              weight: l.weight,
+              weight_unit: l.weight_unit,
+              duration_minutes: l.duration_minutes,
+              distance_km: l.distance_km,
+              set_details: l.set_details,
+              rpe: l.rpe,
+              volume,
+              estimated_1rm,
+            };
+          });
+
+          let trend: "up" | "down" | "flat" | null = null;
+          if (withWeight.length >= 4) {
+            const mid = Math.floor(withWeight.length / 2);
+            const recentAvg = withWeight.slice(0, mid).reduce((s, l) => s + l.weight!, 0) / mid;
+            const olderAvg = withWeight.slice(mid).reduce((s, l) => s + l.weight!, 0) / (withWeight.length - mid);
+            const diff = ((recentAvg - olderAvg) / olderAvg) * 100;
+            if (diff > 3) trend = "up";
+            else if (diff < -3) trend = "down";
+            else trend = "flat";
+          }
+
+          let avg_frequency_days: number | null = null;
+          if (logs.length >= 2) {
+            const dates = logs.map((l) => new Date((l.workout_sessions as unknown as { date: string }).date).getTime());
+            const totalSpan = dates[0] - dates[dates.length - 1];
+            avg_frequency_days = Math.round(totalSpan / (1000 * 60 * 60 * 24) / (logs.length - 1));
+          }
+
+          const best_estimated_1rm = history.reduce((best, h) => {
+            if (h.estimated_1rm && h.estimated_1rm > (best ?? 0)) return h.estimated_1rm;
+            return best;
+          }, null as number | null);
 
           return {
             status: "found",
@@ -197,6 +241,12 @@ export function createCoachTools(userId: string) {
                   ).date,
                 }
               : null,
+            stats: {
+              trend,
+              avg_frequency_days,
+              best_estimated_1rm,
+              best_estimated_1rm_unit: personalBest?.weight_unit || logs[0].weight_unit,
+            },
           };
         } catch {
           return {

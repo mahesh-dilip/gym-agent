@@ -94,7 +94,8 @@ export function formatContextForPrompt(ctx: AgentContext): string {
     ? ctx.todayExercises
         .map((e) => {
           if (e.set_details && e.set_details.length > 0) {
-            return `  - ${e.exercise_name}: ${formatSetDetails(e.set_details as SetDetail[], e.weight_unit)}`;
+            const rpeNote = e.rpe ? ` (RPE ${e.rpe})` : "";
+            return `  - ${e.exercise_name}: ${formatSetDetails(e.set_details as SetDetail[], e.weight_unit)}${rpeNote}`;
           }
           const parts = [e.exercise_name];
           if (e.sets) parts.push(`${e.sets} sets`);
@@ -102,6 +103,7 @@ export function formatContextForPrompt(ctx: AgentContext): string {
           if (e.weight) parts.push(`${e.weight}${e.weight_unit}`);
           if (e.duration_minutes) parts.push(`${e.duration_minutes} min`);
           if (e.distance_km) parts.push(`${e.distance_km} km`);
+          if (e.rpe) parts.push(`RPE ${e.rpe}`);
           return `  - ${parts.join(" · ")}`;
         })
         .join("\n")

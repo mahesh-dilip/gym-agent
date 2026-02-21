@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSharedState } from "@/lib/state/shared-state";
+import { useSharedState, type PrInfo } from "@/lib/state/shared-state";
 import type { SetDetail } from "@/lib/supabase/types";
 
 type ExerciseData = {
@@ -14,6 +14,8 @@ type ExerciseData = {
   duration_minutes?: number;
   distance_km?: number;
   notes?: string;
+  rpe?: number;
+  rir?: number;
   set_details?: SetDetail[];
 };
 
@@ -28,6 +30,7 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prInfo, setPrInfo] = useState<PrInfo | null>(null);
   const [form, setForm] = useState<ExerciseData>(data ?? {} as ExerciseData);
   const [setRows, setSetRows] = useState<SetDetail[]>([]);
 
@@ -71,7 +74,7 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
   async function handleConfirm() {
     setSaving(true);
     setError(null);
-    const result = await persistExercise({
+    const { exercise: result, pr } = await persistExercise({
       session_id: "",
       exercise_name: form.exercise_name,
       category: form.category,
@@ -84,17 +87,20 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
       notes: form.notes ?? null,
       order_index: null,
       set_details: hasSetDetails ? setRows : null,
+      rpe: form.rpe ?? null,
+      rir: form.rir ?? null,
     });
     setSaving(false);
     if (result) {
       setSaved(true);
       setEditing(false);
+      if (pr.isPr) setPrInfo(pr);
     } else {
       setError("FAILED TO SAVE. RETRY?");
     }
   }
 
-  function updateSetRow(index: number, field: "weight" | "reps", value: string) {
+  function updateSetRow(index: number, field: "weight" | "reps" | "rpe", value: string) {
     setSetRows((prev) =>
       prev.map((row, i) =>
         i === index ? { ...row, [field]: value ? Number(value) : null } : row
@@ -122,6 +128,23 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
         )}
       </div>
 
+      {/* PR Celebration Banner */}
+      {prInfo?.isPr && (
+        <div className="px-4 py-2.5 bg-warning/10 border-b border-warning/20 flex items-center gap-2">
+          <span className="text-sm font-bold text-warning">NEW PR</span>
+          <span className="text-sm text-text-primary">
+            {prInfo.newBest} {prInfo.unit}
+          </span>
+          {prInfo.previousBest ? (
+            <span className="text-xs text-text-tertiary ml-auto">
+              prev: {prInfo.previousBest} {prInfo.unit}
+            </span>
+          ) : (
+            <span className="text-xs text-text-tertiary ml-auto">First record</span>
+          )}
+        </div>
+      )}
+
       <div className="p-4">
         <h3 className="text-lg font-bold text-text-primary tracking-tight mb-4">
           {form.exercise_name}
@@ -134,13 +157,14 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
             {hasSetDetails && showStrength ? (
               <div className="space-y-2">
                 {/* Header row */}
-                <div className="grid grid-cols-[2rem_1fr_1fr] gap-2">
+                <div className="grid grid-cols-[2rem_1fr_1fr_2.5rem] gap-2">
                   <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">SET</span>
                   <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">REPS</span>
                   <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">{(form.weight_unit || "kg").toUpperCase()}</span>
+                  <span className="text-[10px] text-text-tertiary uppercase tracking-wider text-center">RPE</span>
                 </div>
                 {setRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[2rem_1fr_1fr] gap-2 items-center">
+                  <div key={i} className="grid grid-cols-[2rem_1fr_1fr_2.5rem] gap-2 items-center">
                     <span className="text-xs font-mono text-text-tertiary text-center">{i + 1}</span>
                     <input
                       type="number"
@@ -156,12 +180,21 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
                       className="w-full bg-transparent border-b border-border text-center py-1.5 font-mono text-base focus:border-primary focus:outline-none transition-colors"
                       placeholder="0"
                     />
+                    <input
+                      type="number"
+                      value={row.rpe ?? ""}
+                      onChange={(e) => updateSetRow(i, "rpe", e.target.value)}
+                      className="w-full bg-transparent border-b border-border text-center py-1.5 font-mono text-sm text-warning focus:border-warning focus:outline-none transition-colors"
+                      placeholder="-"
+                      min={1}
+                      max={10}
+                    />
                   </div>
                 ))}
               </div>
             ) : (
               /* Standard scalar editor */
-              <div className="grid grid-cols-3 gap-3">
+              <div className={`grid gap-3 ${showStrength ? "grid-cols-4" : "grid-cols-3"}`}>
                 {showStrength && (
                   <>
                     <div className="space-y-1">
@@ -185,13 +218,25 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">KG</label>
+                      <label className="text-[10px] text-text-tertiary uppercase tracking-wider block">{(form.weight_unit || "kg").toUpperCase()}</label>
                       <input
                         type="number"
                         value={form.weight ?? ""}
                         onChange={(e) => setForm({ ...form, weight: e.target.value ? Number(e.target.value) : undefined })}
                         className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg focus:border-primary focus:outline-none transition-colors"
                         placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-warning uppercase tracking-wider block">RPE</label>
+                      <input
+                        type="number"
+                        value={form.rpe ?? ""}
+                        onChange={(e) => setForm({ ...form, rpe: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full bg-transparent border-b border-border text-center py-2 font-mono text-lg text-warning focus:border-warning focus:outline-none transition-colors"
+                        placeholder="-"
+                        min={1}
+                        max={10}
                       />
                     </div>
                   </>
@@ -260,6 +305,11 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
                       <span className="font-mono text-text-primary">
                         {row.weight ?? "?"}{(form.weight_unit || "kg")} x {row.reps ?? "?"}
                       </span>
+                      {row.rpe && (
+                        <span className="text-[10px] font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                          RPE {row.rpe}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -282,6 +332,12 @@ export function ExerciseLogCard({ data, isLoading }: Props) {
                     <div className="flex flex-col">
                       <span className="text-2xl font-mono leading-none">{form.weight}</span>
                       <span className="text-[9px] text-text-tertiary uppercase tracking-widest mt-1">KG</span>
+                    </div>
+                  )}
+                  {form.rpe && (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-mono leading-none text-warning">{form.rpe}</span>
+                      <span className="text-[9px] text-warning uppercase tracking-widest mt-1">RPE</span>
                     </div>
                   )}
                   {form.duration_minutes && (

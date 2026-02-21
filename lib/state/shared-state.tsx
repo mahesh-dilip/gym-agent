@@ -142,10 +142,18 @@ function sharedStateReducer(state: SharedState, action: Action): SharedState {
   }
 }
 
+export type PrInfo = {
+  isPr: boolean;
+  type?: "weight" | "volume" | "reps";
+  previousBest?: number;
+  newBest?: number;
+  unit?: string;
+};
+
 type SharedStateContextType = {
   state: SharedState;
   dispatch: Dispatch<Action>;
-  persistExercise: (exercise: Omit<ExerciseLog, "id" | "user_id" | "logged_at">) => Promise<ExerciseLog | null>;
+  persistExercise: (exercise: Omit<ExerciseLog, "id" | "user_id" | "logged_at">) => Promise<{ exercise: ExerciseLog | null; pr: PrInfo }>;
   persistRecovery: (recovery: Omit<RecoveryLog, "id" | "user_id" | "logged_at">) => Promise<RecoveryLog | null>;
   persistGoal: (goal: Omit<Goal, "id" | "user_id" | "created_at" | "updated_at">) => Promise<Goal | null>;
   persistPlan: (exercises: Array<{ name: string; target_sets: number; notes?: string }>) => Promise<void>;
@@ -242,11 +250,37 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
   }, [state.currentSession.id, supabase]);
 
   const persistExercise = useCallback(
-    async (exercise: Omit<ExerciseLog, "id" | "user_id" | "logged_at">): Promise<ExerciseLog | null> => {
+    async (exercise: Omit<ExerciseLog, "id" | "user_id" | "logged_at">): Promise<{ exercise: ExerciseLog | null; pr: PrInfo }> => {
+      const noPr: PrInfo = { isPr: false };
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) return { exercise: null, pr: noPr };
 
       const sessionId = await ensureSession();
+
+      // Check existing PR (max weight) for this exercise before inserting
+      let pr: PrInfo = noPr;
+      if (exercise.weight) {
+        const { data: prData } = await supabase
+          .from("exercise_logs")
+          .select("weight, weight_unit")
+          .eq("user_id", user.id)
+          .ilike("exercise_name", exercise.exercise_name)
+          .not("weight", "is", null)
+          .order("weight", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const prevBest = prData?.weight ?? 0;
+        if (exercise.weight > prevBest) {
+          pr = {
+            isPr: true,
+            type: "weight",
+            previousBest: prevBest || undefined,
+            newBest: exercise.weight,
+            unit: exercise.weight_unit || "kg",
+          };
+        }
+      }
 
       const { data, error } = await supabase
         .from("exercise_logs")
@@ -260,11 +294,11 @@ export function SharedStateProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Failed to persist exercise:", error);
-        return null;
+        return { exercise: null, pr: noPr };
       }
 
       dispatch({ type: "LOG_EXERCISE", payload: data as ExerciseLog });
-      return data as ExerciseLog;
+      return { exercise: data as ExerciseLog, pr };
     },
     [supabase, ensureSession]
   );

@@ -17,6 +17,8 @@ export type SetDetail = {
   weight: number | null;
   reps: number | null;
   weight_unit?: string;
+  rpe?: number | null;
+  rir?: number | null;
 };
 
 export type ExerciseLog = {
@@ -34,6 +36,8 @@ export type ExerciseLog = {
   notes: string | null;
   order_index: number | null;
   set_details: SetDetail[] | null;
+  rpe: number | null;
+  rir: number | null;
   logged_at: string;
 };
 
