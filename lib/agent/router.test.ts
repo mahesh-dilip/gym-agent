@@ -10,15 +10,22 @@ describe("routeIntent", () => {
     expect(routeIntent("deadlift 140 x 3")).toBe("haiku");
   });
 
-  it("KNOWN BUG: unanchored /pr/i misroutes 'press' logs to sonnet", () => {
-    // The pattern /pr/i is intended to catch 'PR' / personal-record talk, but
-    // it is unanchored, so the substring 'pr' inside 'press' matches. Every
-    // press-exercise log is therefore sent to the expensive Sonnet model
-    // instead of Haiku. This test documents the CURRENT (buggy) behavior so a
-    // regression here is intentional. Fix: anchor as /\bpr\b/i or /\bprs?\b/i.
-    expect(routeIntent("bench press 60x10")).toBe("sonnet");
-    expect(routeIntent("leg press 120x12")).toBe("sonnet");
-    expect(routeIntent("overhead press 40x8")).toBe("sonnet");
+  it("routes press-exercise logs to haiku (PR pattern is word-anchored)", () => {
+    // Regression guard for the /\bprs?\b/i fix: the substring 'pr' inside
+    // 'press' must NOT trigger the PR pattern, so plain press logs stay on the
+    // cheap Haiku model. Previously /pr/i misrouted all of these to Sonnet.
+    expect(routeIntent("bench press 60x10")).toBe("haiku");
+    expect(routeIntent("leg press 120x12")).toBe("haiku");
+    expect(routeIntent("overhead press 40x8")).toBe("haiku");
+    expect(routeIntent("chest press 30x12")).toBe("haiku");
+    expect(routeIntent("shoulder press 20x10")).toBe("haiku");
+  });
+
+  it("still routes genuine PR / personal-record talk to sonnet", () => {
+    expect(routeIntent("new PR today!")).toBe("sonnet");
+    expect(routeIntent("is that a pr?")).toBe("sonnet");
+    expect(routeIntent("show me all my PRs")).toBe("sonnet");
+    expect(routeIntent("hit a pr on squat")).toBe("sonnet");
   });
 
   it("routes greetings to sonnet", () => {

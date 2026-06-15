@@ -65,7 +65,7 @@ const SONNET_PATTERNS = [
   /progress/i,
   /personal.*best/i,
   /pb/i,
-  /pr/i,
+  /\bprs?\b/i,
   /history.*for/i,
   /how.*am.*i.*doing/i,
   /posture/i,
