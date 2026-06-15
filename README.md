@@ -1,3 +1,5 @@
+[![CI](https://github.com/mahesh-dilip/gym-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mahesh-dilip/gym-agent/actions/workflows/ci.yml)
+
 # Gym Agent
 
 A conversational gym tracker where you log workouts in plain English and a Claude-powered agent responds with interactive cards instead of plain text.
